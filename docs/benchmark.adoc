@@ -1,0 +1,226 @@
+= Benchmarks & Technical Data
+:toc:
+
+== Type Requirements
+
+A type non-void `T` needs to satisfy the following requirements to be sent via a `copper::channel`:
+
+* default constructible
+* move constructible
+* move assignable
+* destructible
+
+If your compiler supports C++20 concepts, these properties are checked when instantiating the template.
+
+== Memory Space
+
+On a typical 64 bit system, types of Copper can be expected to have the following sizes in memory:
+
+|===
+|type |size in bytes
+
+| `copper::buffered_channel<T>` for `T ≠ void`
+| 296 + buffer size * `sizeof(T)`
+
+| `copper::buffered_channel<void>`
+| 224
+
+| `copper::unbuffered_channel<T>`
+| 208
+
+| `copper::channel_push_iterator<copper::buffered_channel<T>>`
+| 16
+
+| `copper::channel_pop_iterator<copper::buffered_channel<T>>`
+| 24
+
+| `copper::channel_read_view<copper::buffered_channel<T>>`
+| 8
+
+| `copper::channel_write_view<copper::buffered_channel<T>>`
+| 8
+|===
+
+In addition, all channels take up about 40 bytes additional storage for each pending operation that is executed on them.
+
+== Operation Cost
+
+For a **buffered** channel `chan` that contains element of a non-void type `T`, the following calls occur for different operations:
+
+|===
+|operation |calls to `T()` |`T(const T&)` |`T(T&&)` |`T::operator=(T&&)`
+
+|`chan.push(x)` (lvalue ref)
+|0
+|1
+|1
+|0
+
+|`chan.push(std::move(x))`
+|0
+|0
+|2
+|0
+
+|`chan.push_func([&x] {return std::move(x);})`
+|0
+|0
+|2
+|0
+
+|`chan.pop()`
+|1-2*
+|0
+|1-2*
+|1
+
+|`chan.pop_func([](T&&) {})`
+|0-1*
+|0
+|1-2*
+|0
+|===
+[*] If a pop operation is called while a buffered channel is full and even more push operations are already pending, the pop operation will move the next pending push to the internal buffer, causing one additional call to `T()` and `T(T&&)` each.
+
+
+For an **unbuffered** channel `chan` that contains element of a non-void type `T`, the following calls occur for different operations:
+
+|===
+|operation |calls to `T()` |`T(const T&)` |`T(T&&)` |`T::operator=(T&&)`
+
+|`chan.push(x)` (lvalue ref)
+|0
+|1
+|0
+|0
+
+|`chan.push(std::move(x))`
+|0
+|0
+|1
+|0
+
+|`chan.push_func([&x] {return std::move(x);})`
+|0
+|0
+|1
+|0
+
+|`chan.pop()`
+|1
+|0
+|1
+|1
+
+|`chan.pop_func([](T&&) {})`
+|0
+|0
+|0
+|0
+|===
+
+(In some specific cases, a buffered channel might be able to skip using its buffer and reach the same performance of unbuffered channels.)
+
+
+== Benchmark (SPSC)
+
+(Disclaimer: The following measurements were done on a single 6-core CPU by a simple "measure multiple times and take the average" strategy. They can vary greatly depending on the CPU architecture, the surrounding memory model, and the thread scheduler.)
+
+In this benchmark, data is being sent from one thread to another via three different methods:
+
+1. `std::queue` with a `std::mutex` and a `std::condition_variable`
+2. `copper::buffered_channel`
+3. `copper::unbuffered_channel`
+
+Also, a program which mimics the behavior as closely as possible was written in Go using native channel objects.
+
+Two types of messages are compared:
+
+1. `int`, as an fast-to-move message
+2. `std::array<int, 10'000>`, as a large, slow-to-move message type
+
+The table below displays the average time to send and receive one message and the resulting data rate.
+
+[cols="h,1,1"]
+|===
+| |`int` |`std::array<int, 10'000>`
+
+|`std::queue`
+| 208.9 ns +
+19.15 MB/s
+| 18395.9 ns +
+2174 MB/s
+
+|`copper::buffered_channel`
+| 214.64 ns +
+18.6 MB/s
+| 24282.8 ns +
+1647 MB/s
+
+|`copper::unbuffered_channel`
+| 6002.8 ns +
+0.67 MB/s
+| 17475.1 ns +
+2289 MB/s
+
+|Go `chan`
+| 273.4 ns +
+14.6 MB/s
+| (not doable)
+
+|===
+
+
+== Benchmark (MPSC)
+
+(Disclaimer: The following measurements were done on a single 6-core CPU by a simple "measure multiple times and take the average" strategy. They can vary greatly depending on the CPU architecture, the surrounding memory model, and the thread scheduler.)
+
+In this benchmark, two types of data are sent from two separate producer threads to a single consumer thread. For that, four different methods are used:
+
+1. `std::queue<std::variant>` with a `std::mutex` and a `std::condition_variable`
+2. Two `std::queue` with `std::mutex` and polling
+3. `copper::buffered_channel` and `copper::select`
+4. `copper::unbuffered_channel` and `copper::select`
+
+Also, a program which mimics the behavior as closely as possible was written in Go using native channel objects.
+
+In the first case, the two types of data are `int` and `float`. In the second case, the types are `std::array<int, 10'000>` and `std::array<float, 10'000>`.
+
+The table below displays the average time to send and receive one message and the resulting data rate.
+Note that the messages are not processed further, which means that any overhead from dealing with `std::variant` is not part of the measurement.
+
+
+[cols="h,1,1"]
+|===
+| |`int`, `float` |`std::array<int, 10'000>`, `std::array<float, 10'000>`
+
+|`std::queue<std::variant>`
+| 283.2 ns +
+14.12 MB/s
+| 37326.2 ns +
+1072 MB/s
+
+|Two `std::queue`
+| 267.1 ns +
+14.98 MB/s
+| 25244.6 ns +
+1584 MB/s
+
+|`copper::buffered_channel` and `copper::select`
+| 340.1 ns +
+11.76 MB/s
+| 33942.6 ns +
+1178 MB/s
+
+|`copper::unbuffered_channel` and `copper::select`
+| 8441.3 ns +
+0.47 MB/s
+| 20570.5 ns +
+1945 MB/s
+
+|Go `chan`
+| 562.9 ns +
+7.11 MB/s
+| (not doable)
+
+|===

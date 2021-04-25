@@ -1,0 +1,10 @@
+# Generated from CLion C/C++ Code Style settings
+BasedOnStyle: Chromium
+AccessModifierOffset: -2
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+ColumnLimit: 120
+TabWidth: 4
+UseTab: Never
+IndentWidth: 4
+BreakStringLiterals: false
