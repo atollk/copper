@@ -1643,7 +1643,7 @@ template<>
 struct fill_with_random_indices_impl<4> {
     void operator()(std::array<size_t, 4>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
-        switch (engine(25)) {
+        switch (engine(24)) {
             case 0:
                 indices = {0, 1, 2, 3};
                 break;
@@ -1724,7 +1724,7 @@ template<>
 struct fill_with_random_indices_impl<5> {
     void operator()(std::array<size_t, 5>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
-        switch (engine(121)) {
+        switch (engine(120)) {
             case 0:
                 indices = {0, 1, 2, 3, 4};
                 break;
