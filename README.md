@@ -4,6 +4,10 @@
 
 ---
 
+
+[![Build & Test](https://github.com/atollk/copper/actions/workflows/tests.yml/badge.svg)](https://github.com/atollk/copper/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/atollk/copper/branch/main/graph/badge.svg?token=BCAT88OAU8)](https://codecov.io/gh/atollk/copper)
+
 **Copper** is a C++ library of a powerful queue object for communication between threads. It is based on Go's channels and follows the quote:
 
 >Don't communicate by sharing memory; share memory by communicating.
