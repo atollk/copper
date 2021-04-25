@@ -29,6 +29,7 @@ copper::buffered_channel<int> channel_1;
 copper::buffered_channel<int> channel_2;
 
 void producer_1() {
+    // Push the numbers 0 to 9 into channel_1.
     for (auto i = 0; i < 10; ++i) {
         (void) channel_1.push(i);
     }
@@ -36,6 +37,7 @@ void producer_1() {
 }
 
 void producer_2() {
+    // Push the numbers 0 to 9 into channel_2.
     for (auto i = 0; i < 10; ++i) {
         (void) channel_2.push(i);
     }
@@ -43,6 +45,7 @@ void producer_2() {
 }
 
 void consumer() {
+    // Until both channel_1 and channel_2 are closed, get the next message from either and print it.
     copper::loop_select(
         channel_1 >> [](int x) { std::cout << "Message from producer 1: " << x << std::endl; },
         channel_2 >> [](int x) { std::cout << "Message from producer 2: " << x << std::endl; }
