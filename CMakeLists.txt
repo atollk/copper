@@ -45,6 +45,3 @@ set_property(TARGET copper_tests PROPERTY CXX_STANDARD 20)
 enable_testing()
 add_test(copper_tests copper_tests)
 
-add_executable(main main.cpp)
-target_link_libraries(main PRIVATE copper Threads::Threads)
-set_property(TARGET main PROPERTY CXX_STANDARD 20)
