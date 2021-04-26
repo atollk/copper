@@ -134,13 +134,13 @@ struct dummy_lock_t final {
 constexpr auto dummy_lock = dummy_lock_t();
 
 template <typename F, typename... Ts>
-void visit_at(const std::tuple<Ts...>& tup, size_t idx, F fun);
+void visit_at(const std::tuple<Ts...>& tup, size_t idx, F&& fun);
 
 template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...>& tup, size_t idx, F fun);
+void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun);
 
 template <typename... Ts, typename F>
-void for_each_in_tuple(const std::tuple<Ts...>& t, F f);
+void for_each_in_tuple(const std::tuple<Ts...>& t, F&& f);
 
 template <size_t N>
 static void fill_with_random_indices(std::array<size_t, N>& indices);
@@ -1313,19 +1313,40 @@ struct pairify_template<> {
 
 template <typename A, typename B, typename... Args>
 struct pairify_template<A, B, Args...> {
-    auto operator()(A a, B b, const Args... args) {
-        auto lhs = std::make_tuple(std::pair<A, B>(std::forward<A>(a), std::forward<B>(b)));
-        auto rhs = pairify_template<Args...>()(args...);
-        return std::tuple_cat(std::move(lhs), std::move(rhs));
+    auto operator()(A a, B b, Args&&... args) {
+        return std::tuple_cat(std::make_tuple(std::pair<A, B>(std::forward<A>(a), std::forward<B>(b))),
+                              pairify_template<Args...>()(std::forward<Args>(args)...));
     }
 };
+
+/** apply a function to each element of a tuple and return the result */
+template <typename T, typename F, size_t... Is>
+auto transform_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) {
+    return std::make_tuple((f(Is, std::get<Is>(t)))...);
+}
+
+template <typename... Ts, typename F>
+auto transform_tuple(const std::tuple<Ts...>& t, F&& f) {
+    return transform_tuple_impl(t, std::forward<F>(f), std::make_integer_sequence<size_t, sizeof...(Ts)>());
+}
+
+struct voidval_t {};
 
 template <bool _is_pop, typename VarT, bool is_buffered, typename T, template <typename...> typename... Args>
 struct value_select_token {
     static constexpr bool is_op_base = false;
     static constexpr bool is_pop = _is_pop;
+    static constexpr bool is_void = false;
     channel<is_buffered, T, Args...>& chan;
     VarT outvar;
+};
+
+template <bool _is_pop, bool is_buffered, template <typename...> typename... Args>
+struct value_select_token<_is_pop, void, is_buffered, void, Args...> {
+    static constexpr bool is_op_base = false;
+    static constexpr bool is_pop = _is_pop;
+    static constexpr bool is_void = true;
+    channel<is_buffered, void, Args...>& chan;
 };
 
 template <wait_type wtype, typename... Ops, typename... Args>
@@ -1341,34 +1362,47 @@ channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
         auto& vst = pair.first;
         auto& postfunc = pair.second;
         if constexpr (vst.is_pop) {
-            return vst.chan >> [var = &vst.outvar, &selected_index, index](auto&& x) {
-                *var = std::forward<decltype(x)>(x);
-                selected_index = index;
-            };
+            if constexpr (!vst.is_void) {
+                return vst.chan >> [var = &vst.outvar, &selected_index, index](auto&& x) {
+                    *var = std::forward<decltype(x)>(x);
+                    selected_index = index;
+                };
+            } else {
+                return vst.chan >> [&selected_index, index] { selected_index = index; };
+            }
         } else {
-            return vst.chan << [var = std::ref(vst.outvar), &selected_index, index] {
-                selected_index = index;
-                return var.get();
-            };
+            if constexpr (!vst.is_void) {
+                return vst.chan << [var = std::ref(vst.outvar), &selected_index, index] {
+                    selected_index = index;
+                    return var.get();
+                };
+            } else {
+                return vst.chan << [&selected_index, index] { selected_index = index; };
+            }
         }
     };
-    auto opsf = [&pair_to_op](auto&&... pairs) {
-        return std::make_tuple(pair_to_op(0, std::forward<decltype(pairs)>(pairs))...);  // TODO index
-    };
-    auto ops = std::apply(opsf, pairs);
-    return opselect<wtype>(ops, std::forward<Args>(args)...);
+    auto ops = transform_tuple(pairs, pair_to_op);
+    const auto result = opselect<wtype>(ops, std::forward<Args>(args)...);
+    if (result == channel_op_status::success) {
+        visit_at(pairs, selected_index, [](auto&& f) { f.second(); });
+    }
+    return result;
 }
 
 }  // namespace _detail
+
+constexpr _detail::voidval_t voidval;
+constexpr _detail::voidval_t _;
 
 /** From a channel and a callback function, creates a popper object that can be used for `select`. */
 template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
 #if __cpp_concepts >= 201907L
 requires requires(Op f) {
     f(std::declval<typename channel<is_buffered, T, Args...>::value_type>());
-}
+} ||(std::is_void_v<T>&& requires(Op f) { f(); })
 #endif
-[[nodiscard]] auto operator>>(channel<is_buffered, T, Args...>& channel, Op&& func) {
+    [[nodiscard]] auto
+    operator>>(channel<is_buffered, T, Args...>& channel, Op&& func) {
     return _detail::make_popper(channel, std::forward<Op>(func));
 }
 
@@ -1377,9 +1411,10 @@ template <typename Op, bool is_buffered, typename T, template <typename...> type
 #if __cpp_concepts >= 201907L
 requires requires(Op f) {
     { f() } -> std::convertible_to<typename channel<is_buffered, T, Args...>::value_type>;
-}
+} ||(std::is_void_v<T>&& requires(Op f) { f(); })
 #endif
-[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, Op&& func) {
+    [[nodiscard]] auto
+    operator<<(channel<is_buffered, T, Args...>& channel, Op&& func) {
     return _detail::make_pusher(channel, std::forward<Op>(func));
 }
 
@@ -1388,14 +1423,25 @@ template <bool is_buffered, typename T, template <typename...> typename... Args>
     return _detail::value_select_token<true, T&, is_buffered, T, Args...>{channel, var};
 }
 
+template <bool is_buffered, template <typename...> typename... Args>
+[[nodiscard]] auto operator>>(channel<is_buffered, void, Args...>& channel, _detail::voidval_t var) {
+    return _detail::value_select_token<true, void, is_buffered, void, Args...>{channel};
+}
+
 template <bool is_buffered, typename T, template <typename...> typename... Args>
 [[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, const T& var) {
     return _detail::value_select_token<false, const T&, is_buffered, T, Args...>{channel, var};
 }
 
 template <bool is_buffered, typename T, template <typename...> typename... Args>
-[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, T&& var) {
-    return _detail::value_select_token<false, T&&, is_buffered, T, Args...>{channel, std::move(var)};
+[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, std::add_rvalue_reference_t<T> var) {
+    return _detail::value_select_token<false, std::add_rvalue_reference_t<T>, is_buffered, T, Args...>{channel,
+                                                                                                       std::move(var)};
+}
+
+template <bool is_buffered, template <typename...> typename... Args>
+[[nodiscard]] auto operator<<(channel<is_buffered, void, Args...>& channel, _detail::voidval_t var) {
+    return _detail::value_select_token<false, void, is_buffered, void, Args...>{channel};
 }
 
 /** User-level "select" function. */
@@ -1574,43 +1620,43 @@ namespace _detail {
 template <size_t I>
 struct visit_impl {
     template <typename T, typename F>
-    static void visit(T& tup, size_t idx, F fun) {
+    static void visit(T& tup, size_t idx, F&& fun) {
         if (idx == I - 1)
             fun(std::get<I - 1>(tup));
         else
-            visit_impl<I - 1>::visit(tup, idx, fun);
+            visit_impl<I - 1>::visit(tup, idx, std::forward<F>(fun));
     }
 };
 
 template <>
 struct visit_impl<0> {
     template <typename T, typename F>
-    static void visit(T& tup, size_t idx, F fun) {
+    static void visit(T& tup, size_t idx, F&& fun) {
         assert(false);
     }
 };
 
 /** Calls a function with the ith element of a tuple. Basically std::get at runtime. */
 template <typename F, typename... Ts>
-void visit_at(const std::tuple<Ts...>& tup, size_t idx, F fun) {
-    visit_impl<sizeof...(Ts)>::visit(tup, idx, fun);
+void visit_at(const std::tuple<Ts...>& tup, size_t idx, F&& fun) {
+    visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
 }
 
 /** Calls a function with the ith element of a tuple. Basically std::get at runtime. */
 template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...>& tup, size_t idx, F fun) {
-    visit_impl<sizeof...(Ts)>::visit(tup, idx, fun);
+void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun) {
+    visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
 }
 
 template <typename T, typename F, size_t... Is>
-void for_each_in_tuple_impl(T&& t, F f, std::integer_sequence<size_t, Is...>) {
+void for_each_in_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) {
     auto l = {(f(Is, std::get<Is>(t)), 0)...};
 }
 
 /** Calls a functor object for each element in a tuple. */
 template <typename... Ts, typename F>
-void for_each_in_tuple(const std::tuple<Ts...>& t, F f) {
-    for_each_in_tuple_impl(t, f, std::make_integer_sequence<size_t, sizeof...(Ts)>());
+void for_each_in_tuple(const std::tuple<Ts...>& t, F&& f) {
+    for_each_in_tuple_impl(t, std::forward<F>(f), std::make_integer_sequence<size_t, sizeof...(Ts)>());
 }
 
 /** Based on xoshiro128++ by by David Blackman and Sebastiano Vigna (vigna@acm.org)
