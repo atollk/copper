@@ -2,7 +2,7 @@
 
 using namespace std::chrono_literals;
 
-CHANNEL_TEST_CASE("Single pop select on unified_channels works correctly.", "[copper]") {
+CHANNEL_TEST_CASE("Single pop select on channels works correctly.", "[copper]") {
     auto chan = channel_t();
     auto task = std::async([&chan]() {
         REQUIRE_THREADSAFE(chan.push(1));
@@ -19,7 +19,7 @@ CHANNEL_TEST_CASE("Single pop select on unified_channels works correctly.", "[co
     REQUIRE_THREADSAFE(result == 3);
 }
 
-CHANNEL_TEST_CASE("Single push select on unified_channels works correctly.", "[copper]") {
+CHANNEL_TEST_CASE("Single push select on channels works correctly.", "[copper]") {
     auto chan = channel_t();
     auto f = []() { return 1; };
     auto task = std::async([&chan]() {
@@ -31,14 +31,14 @@ CHANNEL_TEST_CASE("Single push select on unified_channels works correctly.", "[c
     REQUIRE_THREADSAFE(copper::select(chan << f) == copper::channel_op_status::success);
 }
 
-CHANNEL_TEST_CASE("push select on one closed unified_channels stops.", "[copper]") {
+CHANNEL_TEST_CASE("push select on one closed channels stops.", "[copper]") {
     auto chan = channel_t();
     chan.close();
     const auto f = []() { return 0; };
     REQUIRE_THREADSAFE(copper::select(chan << f) == copper::channel_op_status::closed);
 }
 
-CHANNEL_TEST_CASE("pop select on one closed unified_channels stops.", "[copper]") {
+CHANNEL_TEST_CASE("pop select on one closed channels stops.", "[copper]") {
     auto chan = channel_t();
     auto task = std::async([&chan]() {
         REQUIRE_THREADSAFE(chan.push(1));
@@ -52,7 +52,7 @@ CHANNEL_TEST_CASE("pop select on one closed unified_channels stops.", "[copper]"
     REQUIRE_THREADSAFE(copper::select(chan >> f) == copper::channel_op_status::closed);
 }
 
-CHANNEL_TEST_CASE("push select on one unified_channels reacts to a later close.", "[copper]") {
+CHANNEL_TEST_CASE("push select on one channels reacts to a later close.", "[copper]") {
     auto chan = channel_t();
     const auto f = [](int) {};
     auto fut = std::async([&chan, &f]() {
@@ -80,7 +80,7 @@ CHANNEL_TEST_CASE("pop select on one filled channel and one empty channel works 
     REQUIRE_THREADSAFE(result == 2);
 }
 
-CHANNEL_TEST_CASE("pop select on two pre-filled unified_channels works correctly.", "[copper]") {
+CHANNEL_TEST_CASE("pop select on two pre-filled channels works correctly.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
     auto task = std::async([&chan1, &chan2]() {
@@ -94,7 +94,7 @@ CHANNEL_TEST_CASE("pop select on two pre-filled unified_channels works correctly
     REQUIRE_THREADSAFE(result == 3);
 }
 
-CHANNEL_TEST_CASE("push select on two unified_channels works correctly.", "[copper]") {
+CHANNEL_TEST_CASE("push select on two channels works correctly.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
     auto f1 = []() { return 1; };
@@ -155,7 +155,7 @@ CHANNEL_TEST_CASE("push select on two full channel reacts to a later pop.", "[co
     REQUIRE_THREADSAFE(fut.wait_for(50ms) == std::future_status::ready);
 }
 
-CHANNEL_TEST_CASE("select on two closed unified_channels stops.", "[copper]") {
+CHANNEL_TEST_CASE("select on two closed channels stops.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
     chan1.close();
@@ -187,7 +187,7 @@ CHANNEL_TEST_CASE("selecting on the same channel twice at once works correctly."
     REQUIRE_THREADSAFE(result == 1);
 }
 
-CHANNEL_TEST_CASE("select on two unified_channels reacts to a later close.", "[copper]") {
+CHANNEL_TEST_CASE("select on two channels reacts to a later close.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
     const auto f = [](int) {};
@@ -392,4 +392,10 @@ CHANNEL_TEST_CASE(
            fut3.wait_for(1ms) == std::future_status::timeout) {
         (void)chan1.try_pop();
     }
+}
+
+CHANNEL_TEST_CASE("SASDASDASDy.", "[copper]") {
+    auto chan = channel_t();
+    int x;
+    copper::select(chan >> x, [] {});
 }

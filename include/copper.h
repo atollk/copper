@@ -807,6 +807,8 @@ template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, popper_base_nonvoid<T>> {
     using channel_t = channel<is_buffered, T, Args...>;
 
+    static constexpr bool is_op_base = true;
+
     explicit popper_base(channel_t& channel) : _channel(&channel) {}
 
     /** Notifies the respective channel that this operation is now waiting on an update. */
@@ -906,6 +908,8 @@ struct popper<F, is_buffered, void, Args...> final : public popper_base<is_buffe
 template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct pusher_base {
     using channel_t = channel<is_buffered, T, Args...>;
+
+    static constexpr bool is_op_base = true;
 
     explicit pusher_base(channel_t& channel) : _channel(&channel) {}
 
@@ -1296,6 +1300,67 @@ class channel_push_iterator {
     };
 };
 
+namespace _detail {
+
+/** convert a tuple (A, B, C, D, ...) to a tuple of pairs ((A, B), (C, D), ...) */
+template <typename... Args>
+struct pairify_template {};
+
+template <>
+struct pairify_template<> {
+    std::tuple<> operator()() { return {}; }
+};
+
+template <typename A, typename B, typename... Args>
+struct pairify_template<A, B, Args...> {
+    auto operator()(A a, B b, const Args... args) {
+        auto lhs = std::make_tuple(std::pair<A, B>(std::forward<A>(a), std::forward<B>(b)));
+        auto rhs = pairify_template<Args...>()(args...);
+        return std::tuple_cat(std::move(lhs), std::move(rhs));
+    }
+};
+
+template <bool _is_pop, typename VarT, bool is_buffered, typename T, template <typename...> typename... Args>
+struct value_select_token {
+    static constexpr bool is_op_base = false;
+    static constexpr bool is_pop = _is_pop;
+    channel<is_buffered, T, Args...>& chan;
+    VarT outvar;
+};
+
+template <wait_type wtype, typename... Ops, typename... Args>
+channel_op_status opselect(std::tuple<Ops...>& ops, Args&&... args) {
+    auto manager = std::make_from_tuple<_detail::select_manager<std::remove_reference_t<Ops>...>>(ops);
+    return manager.template select<wtype>(std::forward<Args>(args)...);
+}
+
+template <wait_type wtype, typename... Pairs, typename... Args>
+channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
+    auto selected_index = size_t(0);
+    auto pair_to_op = [&selected_index](size_t index, auto& pair) {
+        auto& vst = pair.first;
+        auto& postfunc = pair.second;
+        if constexpr (vst.is_pop) {
+            return vst.chan >> [var = &vst.outvar, &selected_index, index](auto&& x) {
+                *var = std::forward<decltype(x)>(x);
+                selected_index = index;
+            };
+        } else {
+            return vst.chan << [var = std::ref(vst.outvar), &selected_index, index] {
+                selected_index = index;
+                return var.get();
+            };
+        }
+    };
+    auto opsf = [&pair_to_op](auto&&... pairs) {
+        return std::make_tuple(pair_to_op(0, std::forward<decltype(pairs)>(pairs))...);  // TODO index
+    };
+    auto ops = std::apply(opsf, pairs);
+    return opselect<wtype>(ops, std::forward<Args>(args)...);
+}
+
+}  // namespace _detail
+
 /** From a channel and a callback function, creates a popper object that can be used for `select`. */
 template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
 #if __cpp_concepts >= 201907L
@@ -1318,33 +1383,76 @@ requires requires(Op f) {
     return _detail::make_pusher(channel, std::forward<Op>(func));
 }
 
-/** User-level "select" function. */
-template <typename... Ops>
-[[nodiscard]] channel_op_status select(Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::forever>();
+template <bool is_buffered, typename T, template <typename...> typename... Args>
+[[nodiscard]] auto operator>>(channel<is_buffered, T, Args...>& channel, T& var) {
+    return _detail::value_select_token<true, T&, is_buffered, T, Args...>{channel, var};
+}
+
+template <bool is_buffered, typename T, template <typename...> typename... Args>
+[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, const T& var) {
+    return _detail::value_select_token<false, const T&, is_buffered, T, Args...>{channel, var};
+}
+
+template <bool is_buffered, typename T, template <typename...> typename... Args>
+[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, T&& var) {
+    return _detail::value_select_token<false, T&&, is_buffered, T, Args...>{channel, std::move(var)};
 }
 
 /** User-level "select" function. */
 template <typename... Ops>
-[[nodiscard]] channel_op_status try_select(Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::none>();
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base & ...), channel_op_status> select(Ops&&... ops) {
+    return _detail::opselect<wait_type::forever>(std::forward_as_tuple(ops...));
+}
+
+/** User-level "select" function. */
+template <typename... Ops>
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> try_select(Ops&&... ops) {
+    return _detail::opselect<wait_type::none>(std::forward_as_tuple(ops...));
 }
 
 /** User-level "select" function. */
 template <typename Rep, typename Period, typename... Ops>
-[[nodiscard]] channel_op_status try_select_for(const std::chrono::duration<Rep, Period>& rel_time, Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::for_>(rel_time);
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> try_select_for(
+    const std::chrono::duration<Rep, Period>& rel_time,
+    Ops&&... ops) {
+    return _detail::opselect<wait_type::for_>(std::forward_as_tuple(ops...), rel_time);
 }
 
 /** User-level "select" function. */
 template <typename Clock, typename Duration, typename... Ops>
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> try_select_until(
+    const std::chrono::time_point<Clock, Duration>& timeout_time,
+    Ops&&... ops) {
+    return _detail::opselect<wait_type::until>(std::forward_as_tuple(ops...), timeout_time);
+}
+
+/** User-level "select" function. */
+template <typename... Args>
+[[nodiscard]] channel_op_status select(Args&&... args) {
+    return _detail::template valueselect<wait_type::forever>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...));
+}
+
+/** User-level "select" function. */
+template <typename... Args>
+[[nodiscard]] channel_op_status try_select(Args&&... args) {
+    return _detail::template valueselect<wait_type::none>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...));
+}
+
+/** User-level "select" function. */
+template <typename Rep, typename Period, typename... Args>
+[[nodiscard]] channel_op_status try_select_for(const std::chrono::duration<Rep, Period>& rel_time, Args&&... args) {
+    return _detail::template valueselect<wait_type::for_>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...), rel_time);
+}
+
+/** User-level "select" function. */
+template <typename Clock, typename Duration, typename... Args>
 [[nodiscard]] channel_op_status try_select_until(const std::chrono::time_point<Clock, Duration>& timeout_time,
-                                                 Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::until>(timeout_time);
+                                                 Args&&... args) {
+    return _detail::template valueselect<wait_type::until>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...), timeout_time);
 }
 
 namespace _detail {
