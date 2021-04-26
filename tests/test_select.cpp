@@ -400,18 +400,23 @@ CHANNEL_TEST_CASE("Triple select works correctly.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
     auto chan3 = channel_t();
-    auto sum = 0;
-    const auto f = [&sum](int i) { sum += i; };
-    auto task = std::async([&chan1, &chan2, &chan3, f]() {
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) == copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) == copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) == copper::channel_op_status::success);
-    });
-    REQUIRE_THREADSAFE(chan1.push(0));
-    REQUIRE_THREADSAFE(chan2.push(2));
-    REQUIRE_THREADSAFE(chan3.push(4));
-    task.wait();
-    REQUIRE_THREADSAFE(sum == 6);
+    for (auto n = 0; n < 100; ++n) {
+        auto sum = 0;
+        const auto f = [&sum](int i) { sum += i; };
+        auto task = std::async([&chan1, &chan2, &chan3, f]() {
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) ==
+                               copper::channel_op_status::success);
+        });
+        REQUIRE_THREADSAFE(chan1.push(0));
+        REQUIRE_THREADSAFE(chan2.push(2));
+        REQUIRE_THREADSAFE(chan3.push(4));
+        task.wait();
+        REQUIRE_THREADSAFE(sum == 6);
+    }
 }
 
 CHANNEL_TEST_CASE("Quadruple select works correctly.", "[copper]") {
@@ -419,24 +424,26 @@ CHANNEL_TEST_CASE("Quadruple select works correctly.", "[copper]") {
     auto chan2 = channel_t();
     auto chan3 = channel_t();
     auto chan4 = channel_t();
-    auto sum = 0;
-    const auto f = [&sum](int i) { sum += i; };
-    auto task = std::async([&chan1, &chan2, &chan3, &chan4, f]() {
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
-                           copper::channel_op_status::success);
-    });
-    REQUIRE_THREADSAFE(chan1.push(0));
-    REQUIRE_THREADSAFE(chan2.push(2));
-    REQUIRE_THREADSAFE(chan3.push(4));
-    REQUIRE_THREADSAFE(chan4.push(1));
-    task.wait();
-    REQUIRE_THREADSAFE(sum == 7);
+    for (auto n = 0; n < 100; ++n) {
+        auto sum = 0;
+        const auto f = [&sum](int i) { sum += i; };
+        auto task = std::async([&chan1, &chan2, &chan3, &chan4, f]() {
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                               copper::channel_op_status::success);
+        });
+        REQUIRE_THREADSAFE(chan1.push(0));
+        REQUIRE_THREADSAFE(chan2.push(2));
+        REQUIRE_THREADSAFE(chan3.push(4));
+        REQUIRE_THREADSAFE(chan4.push(1));
+        task.wait();
+        REQUIRE_THREADSAFE(sum == 7);
+    }
 }
 
 CHANNEL_TEST_CASE("Quintuple select works correctly.", "[copper]") {
@@ -445,27 +452,29 @@ CHANNEL_TEST_CASE("Quintuple select works correctly.", "[copper]") {
     auto chan3 = channel_t();
     auto chan4 = channel_t();
     auto chan5 = channel_t();
-    auto sum = 0;
-    const auto f = [&sum](int i) { sum += i; };
-    auto task = std::async([&chan1, &chan2, &chan3, &chan4, &chan5, f]() {
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
-                           copper::channel_op_status::success);
-    });
-    REQUIRE_THREADSAFE(chan1.push(0));
-    REQUIRE_THREADSAFE(chan2.push(2));
-    REQUIRE_THREADSAFE(chan3.push(4));
-    REQUIRE_THREADSAFE(chan4.push(1));
-    REQUIRE_THREADSAFE(chan5.push(3));
-    task.wait();
-    REQUIRE_THREADSAFE(sum == 10);
+    for (auto n = 0; n < 100; ++n) {
+        auto sum = 0;
+        const auto f = [&sum](int i) { sum += i; };
+        auto task = std::async([&chan1, &chan2, &chan3, &chan4, &chan5, f]() {
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                               copper::channel_op_status::success);
+        });
+        REQUIRE_THREADSAFE(chan1.push(0));
+        REQUIRE_THREADSAFE(chan2.push(2));
+        REQUIRE_THREADSAFE(chan3.push(4));
+        REQUIRE_THREADSAFE(chan4.push(1));
+        REQUIRE_THREADSAFE(chan5.push(3));
+        task.wait();
+        REQUIRE_THREADSAFE(sum == 10);
+    }
 }
 
 CHANNEL_TEST_CASE("Sextuple select works correctly.", "[copper]") {
@@ -475,28 +484,30 @@ CHANNEL_TEST_CASE("Sextuple select works correctly.", "[copper]") {
     auto chan4 = channel_t();
     auto chan5 = channel_t();
     auto chan6 = channel_t();
-    auto sum = 0;
-    const auto f = [&sum](int i) { sum += i; };
-    auto task = std::async([&chan1, &chan2, &chan3, &chan4, &chan5, &chan6, f]() {
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
-                           copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
-                           copper::channel_op_status::success);
-    });
-    REQUIRE_THREADSAFE(chan1.push(0));
-    REQUIRE_THREADSAFE(chan2.push(2));
-    REQUIRE_THREADSAFE(chan3.push(4));
-    REQUIRE_THREADSAFE(chan4.push(1));
-    REQUIRE_THREADSAFE(chan5.push(3));
-    REQUIRE_THREADSAFE(chan6.push(5));
-    task.wait();
-    REQUIRE_THREADSAFE(sum == 15);
+    for (auto n = 0; n < 100; ++n) {
+        auto sum = 0;
+        const auto f = [&sum](int i) { sum += i; };
+        auto task = std::async([&chan1, &chan2, &chan3, &chan4, &chan5, &chan6, f]() {
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                               copper::channel_op_status::success);
+            REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                               copper::channel_op_status::success);
+        });
+        REQUIRE_THREADSAFE(chan1.push(0));
+        REQUIRE_THREADSAFE(chan2.push(2));
+        REQUIRE_THREADSAFE(chan3.push(4));
+        REQUIRE_THREADSAFE(chan4.push(1));
+        REQUIRE_THREADSAFE(chan5.push(3));
+        REQUIRE_THREADSAFE(chan6.push(5));
+        task.wait();
+        REQUIRE_THREADSAFE(sum == 15);
+    }
 }
