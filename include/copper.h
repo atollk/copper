@@ -1351,12 +1351,12 @@ channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
         } else {
             if constexpr (!vst.is_void) {
                 if constexpr (std::is_rvalue_reference_v<typename std::remove_reference_t<decltype(vst)>::var_t>) {
-                    return vst.chan << [var = std::ref(vst.outvar), &selected_index, index ]() -> auto&& {
+                    return vst.chan << [ var = std::ref(vst.outvar), &selected_index, index ]() -> auto&& {
                         selected_index = index;
                         return std::move(var.get());
                     };
                 } else {
-                    return vst.chan << [var = std::ref(vst.outvar), &selected_index, index ]() -> auto& {
+                    return vst.chan << [ var = std::ref(vst.outvar), &selected_index, index ]() -> auto& {
                         selected_index = index;
                         return var.get();
                     };
@@ -1481,7 +1481,7 @@ template <typename Rep, typename Period, typename... Args>
 /** User-level "select" function. */
 template <typename Clock, typename Duration, typename... Args>
 [[nodiscard]] channel_op_status try_vselect_until(const std::chrono::time_point<Clock, Duration>& timeout_time,
-                                                 Args&&... args) {
+                                                  Args&&... args) {
     return _detail::template valueselect<wait_type::until>(
         _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...),
         timeout_time);
@@ -1749,8 +1749,14 @@ template <size_t N>
 struct fill_with_random_indices_impl {
     void operator()(std::array<size_t, N>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
+        struct urbg {
+            using result_type = decltype(engine(N));
+            constexpr result_type min() { return 0; }
+            constexpr result_type max() { return N - 1; }
+            result_type operator()() { return engine(N); }
+        };
         std::iota(indices.begin(), indices.end(), 0);
-        std::shuffle(indices.begin(), indices.end(), engine);
+        std::shuffle(indices.begin(), indices.end(), urbg{});
     }
 };
 

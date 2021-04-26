@@ -53,7 +53,6 @@ CHANNEL_TEST_CASE("pop vselect on one filled channel and one empty channel works
     REQUIRE_THREADSAFE(result == 2);
 }
 
-/*
 CHANNEL_TEST_CASE("pop vselect on two pre-filled channels works correctly.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
@@ -61,21 +60,35 @@ CHANNEL_TEST_CASE("pop vselect on two pre-filled channels works correctly.", "[c
         REQUIRE_THREADSAFE(chan1.push(1));
         REQUIRE_THREADSAFE(chan2.push(2));
     });
-    auto result = 0;
-    auto f = [&result](int x) { result += x; };
-    REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f) == copper::channel_op_status::success);
-    REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f) == copper::channel_op_status::success);
-    REQUIRE_THREADSAFE(result == 3);
+    auto a = 0;
+    auto sum = 0;
+    REQUIRE_THREADSAFE(copper::vselect(
+                           chan1 >> a,
+                           [&a, &sum] { sum += a; },
+                           chan2 >> a,
+                           [&a, &sum] { sum += a; }) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(copper::vselect(
+                           chan1 >> a,
+                           [&a, &sum] { sum += a; },
+                           chan2 >> a,
+                           [&a, &sum] { sum += a; }) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(sum == 3);
 }
 
 CHANNEL_TEST_CASE("push vselect on two channels works correctly.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
-    auto f1 = []() { return 1; };
-    auto f2 = []() { return 2; };
-    auto task = std::async([&chan1, &chan2, f1, f2]() {
-        REQUIRE_THREADSAFE(copper::select(chan1 << f1, chan2 << f1) == copper::channel_op_status::success);
-        REQUIRE_THREADSAFE(copper::select(chan1 << f2, chan2 << f2) == copper::channel_op_status::success);
+    auto task = std::async([&chan1, &chan2]() {
+        REQUIRE_THREADSAFE(copper::vselect(
+                               chan1 << 1,
+                               [] {},
+                               chan2 << 1,
+                               [] {}) == copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::vselect(
+                               chan1 << 2,
+                               [] {},
+                               chan2 << 2,
+                               [] {}) == copper::channel_op_status::success);
     });
     std::this_thread::yield();
 
@@ -98,4 +111,54 @@ CHANNEL_TEST_CASE("push vselect on two channels works correctly.", "[copper]") {
         REQUIRE_THREADSAFE(val2 == 1);
     }
 }
- */
+
+CHANNEL_TEST_CASE("vselect executes the correct callable.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    auto x = 0;
+    auto pops = std::vector<int>();
+    auto task = std::async([&chan1, &chan2, &x, &pops]() {
+        auto status = copper::vselect(
+            chan1 >> x,
+            [&pops, &x] { pops.push_back(x); },
+            chan2 >> x,
+            [&pops, &x] { pops.push_back(x); });
+        REQUIRE_THREADSAFE(status == copper::channel_op_status::success);
+        status = copper::vselect(
+            chan1 >> x,
+            [&pops, &x] { pops.push_back(x); },
+            chan2 >> x,
+            [&pops, &x] { pops.push_back(x); });
+        REQUIRE_THREADSAFE(status == copper::channel_op_status::success);
+    });
+    std::this_thread::yield();
+
+    REQUIRE_THREADSAFE(chan1.push(1));
+    REQUIRE_THREADSAFE(chan1.push(2));
+    task.wait();
+    REQUIRE_THREADSAFE(pops.size() == 2);
+    REQUIRE_THREADSAFE(pops[0] == 1);
+    REQUIRE_THREADSAFE(pops[1] == 2);
+}
+
+CHANNEL_TEST_CASE("vselect allows the callables to run in parallel.", "[copper]") {
+    auto chan1 = channel_t();
+    auto counter = std::atomic<int>(0);
+    auto f = [&chan1, &counter]() {
+        auto x = 0;
+        const auto status = copper::vselect(chan1 >> x, [&counter] {
+            counter += 1;
+            while (counter < 2) {
+                std::this_thread::yield();
+            }
+        });
+        REQUIRE_THREADSAFE(status == copper::channel_op_status::success);
+    };
+    auto task1 = std::async(f);
+    auto task2 = std::async(f);
+
+    REQUIRE_THREADSAFE(chan1.push(1));
+    REQUIRE_THREADSAFE(chan1.push(2));
+    task1.wait();
+    task2.wait();
+}

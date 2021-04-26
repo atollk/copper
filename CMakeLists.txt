@@ -36,6 +36,8 @@ add_executable(copper_tests
         tests/test_vselect.cpp
         tests/test_advanced.cpp
         tests/test_void_basics.cpp
+        tests/test_void_select.cpp
+        tests/test_void_vselect.cpp
         )
 target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
 set_property(TARGET copper_tests PROPERTY CXX_STANDARD 20)

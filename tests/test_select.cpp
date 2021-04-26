@@ -170,8 +170,9 @@ CHANNEL_TEST_CASE("select does not consider closed channels.", "[copper]") {
     auto chan2 = channel_t();
     chan2.close();
     REQUIRE_THREADSAFE(copper::try_select_for(
-                           50ms, chan1 >> [](int) {}, chan2 << [] { return 0; }) ==
-                       copper::channel_op_status::unavailable);
+                           50ms,
+                           chan1 >> [](int) {},
+                           chan2 << [] { return 0; }) == copper::channel_op_status::unavailable);
 }
 
 CHANNEL_TEST_CASE("selecting on the same channel twice at once works correctly.", "[copper]") {
@@ -291,7 +292,8 @@ CHANNEL_TEST_CASE(
         auto chan2 = channel_t();
         while (keep_running) {
             REQUIRE_THREADSAFE(copper::select(
-                                   chan1 >> push1, chan2 >> [](int) { FAIL(); }) == copper::channel_op_status::success);
+                                   chan1 >> push1,
+                                   chan2 >> [](int) { FAIL(); }) == copper::channel_op_status::success);
         }
     });
     auto fut2 = std::async([&chan1, &push2, &keep_running] {
@@ -349,8 +351,8 @@ CHANNEL_TEST_CASE(
         auto chan2 = channel_t();
         while (keep_running) {
             REQUIRE_THREADSAFE(copper::select(
-                                   chan1 << [] { return 1; }, chan2 >> [](int) { FAIL(); }) ==
-                               copper::channel_op_status::success);
+                                   chan1 << [] { return 1; },
+                                   chan2 >> [](int) { FAIL(); }) == copper::channel_op_status::success);
         }
     });
     auto fut2 = std::async([&chan1, &keep_running] {
@@ -392,4 +394,109 @@ CHANNEL_TEST_CASE(
            fut3.wait_for(1ms) == std::future_status::timeout) {
         (void)chan1.try_pop();
     }
+}
+
+CHANNEL_TEST_CASE("Triple select works correctly.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    auto chan3 = channel_t();
+    auto sum = 0;
+    const auto f = [&sum](int i) { sum += i; };
+    auto task = std::async([&chan1, &chan2, &chan3, f]() {
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) == copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) == copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f) == copper::channel_op_status::success);
+    });
+    REQUIRE_THREADSAFE(chan1.push(0));
+    REQUIRE_THREADSAFE(chan2.push(2));
+    REQUIRE_THREADSAFE(chan3.push(4));
+    task.wait();
+    REQUIRE_THREADSAFE(sum == 6);
+}
+
+CHANNEL_TEST_CASE("Quadruple select works correctly.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    auto chan3 = channel_t();
+    auto chan4 = channel_t();
+    auto sum = 0;
+    const auto f = [&sum](int i) { sum += i; };
+    auto task = std::async([&chan1, &chan2, &chan3, &chan4, f]() {
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f) ==
+                           copper::channel_op_status::success);
+    });
+    REQUIRE_THREADSAFE(chan1.push(0));
+    REQUIRE_THREADSAFE(chan2.push(2));
+    REQUIRE_THREADSAFE(chan3.push(4));
+    REQUIRE_THREADSAFE(chan4.push(1));
+    task.wait();
+    REQUIRE_THREADSAFE(sum == 7);
+}
+
+CHANNEL_TEST_CASE("Quintuple select works correctly.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    auto chan3 = channel_t();
+    auto chan4 = channel_t();
+    auto chan5 = channel_t();
+    auto sum = 0;
+    const auto f = [&sum](int i) { sum += i; };
+    auto task = std::async([&chan1, &chan2, &chan3, &chan4, &chan5, f]() {
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f) ==
+                           copper::channel_op_status::success);
+    });
+    REQUIRE_THREADSAFE(chan1.push(0));
+    REQUIRE_THREADSAFE(chan2.push(2));
+    REQUIRE_THREADSAFE(chan3.push(4));
+    REQUIRE_THREADSAFE(chan4.push(1));
+    REQUIRE_THREADSAFE(chan5.push(3));
+    task.wait();
+    REQUIRE_THREADSAFE(sum == 10);
+}
+
+CHANNEL_TEST_CASE("Sextuple select works correctly.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    auto chan3 = channel_t();
+    auto chan4 = channel_t();
+    auto chan5 = channel_t();
+    auto chan6 = channel_t();
+    auto sum = 0;
+    const auto f = [&sum](int i) { sum += i; };
+    auto task = std::async([&chan1, &chan2, &chan3, &chan4, &chan5, &chan6, f]() {
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                           copper::channel_op_status::success);
+        REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f, chan3 >> f, chan4 >> f, chan5 >> f, chan6 >> f) ==
+                           copper::channel_op_status::success);
+    });
+    REQUIRE_THREADSAFE(chan1.push(0));
+    REQUIRE_THREADSAFE(chan2.push(2));
+    REQUIRE_THREADSAFE(chan3.push(4));
+    REQUIRE_THREADSAFE(chan4.push(1));
+    REQUIRE_THREADSAFE(chan5.push(3));
+    REQUIRE_THREADSAFE(chan6.push(5));
+    task.wait();
+    REQUIRE_THREADSAFE(sum == 15);
 }
