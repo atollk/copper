@@ -53,7 +53,7 @@ void consumer() {
     while (copper::select(
         channel_1 >> [](int x) { std::cout << "Message from producer 1: " << x << std::endl; },
         channel_2 >> [](int x) { std::cout << "Message from producer 2: " << x << std::endl; }
-    ));
+    ) == copper::channel_op_status::success);
 }
 
 int main() {
