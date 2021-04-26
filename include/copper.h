@@ -25,7 +25,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #ifndef INCLUDE_COPPER_H
 #define INCLUDE_COPPER_H
 
@@ -36,9 +35,9 @@ SOFTWARE.
 #include <functional>
 #include <mutex>
 #include <numeric>
-#include <random>
 #include <optional>
 #include <queue>
+#include <random>
 
 #define COPPER_GET_MACRO2(_1, _2, NAME, ...) NAME
 #define COPPER_STATIC_ASSERT(...) \
@@ -72,27 +71,28 @@ enum class wait_type {
     until,   /** Wait until a certain point in time. */
 };
 
-template<bool is_buffered,
-        typename T,
-        template<typename...> typename BufferQueue = std::queue,
-        template<typename...> typename OpQueue = std::deque>
+template <bool is_buffered,
+          typename T,
+          template <typename...> typename BufferQueue = std::queue,
+          template <typename...> typename OpQueue = std::deque>
 #if __cpp_concepts >= 201907L
-requires (std::is_default_constructible_v<T> && std::is_move_constructible_v<T> && std::is_move_assignable_v<T> &&
-          std::is_destructible_v<T>) || std::is_void_v<T>
+requires(std::is_default_constructible_v<T>&& std::is_move_constructible_v<T>&& std::is_move_assignable_v<T>&&
+             std::is_destructible_v<T>) ||
+    std::is_void_v<T>
 #endif
-class channel;
+    class channel;
 
-template<typename T, template<typename> typename... Args>
+template <typename T, template <typename> typename... Args>
 using buffered_channel = channel<true, T, Args...>;
 
-template<typename T, template<typename> typename... Args>
+template <typename T, template <typename> typename... Args>
 using unbuffered_channel = channel<false, T, Args...>;
 
 namespace _detail {
 
 #if __cpp_generic_lambdas < 201707L
 
-template<bool condition>
+template <bool condition>
 void static_assert_ifc() {
     static_assert(condition);
 }
@@ -109,19 +109,19 @@ using channel_mutex_t = std::recursive_mutex;
 using channel_cv_t = std::condition_variable_any;
 #endif
 
-template<typename... Ops>
+template <typename... Ops>
 struct select_manager;
 
-template<bool is_buffered, typename T, template<typename...> typename... Args>
+template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct popper_base;
 
-template<typename F, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename F, bool is_buffered, typename T, template <typename...> typename... Args>
 struct popper;
 
-template<bool is_buffered, typename T, template<typename...> typename... Args>
+template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct pusher_base;
 
-template<typename F, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename F, bool is_buffered, typename T, template <typename...> typename... Args>
 struct pusher;
 
 /** Helper class to pass a mutex "lock" to a function when nothing is actually locked. */
@@ -133,40 +133,40 @@ struct dummy_lock_t final {
 
 constexpr auto dummy_lock = dummy_lock_t();
 
-template<typename F, typename... Ts>
+template <typename F, typename... Ts>
 void visit_at(const std::tuple<Ts...>& tup, size_t idx, F fun);
 
-template<typename F, typename... Ts>
+template <typename F, typename... Ts>
 void visit_at(std::tuple<Ts...>& tup, size_t idx, F fun);
 
-template<typename... Ts, typename F>
+template <typename... Ts, typename F>
 void for_each_in_tuple(const std::tuple<Ts...>& t, F f);
 
-template<size_t N>
+template <size_t N>
 static void fill_with_random_indices(std::array<size_t, N>& indices);
 
 }  // namespace _detail
 
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_read_view;
 
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_write_view;
 
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_pop_iterator;
 
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_push_iterator;
 
 namespace _detail {
 
 /** The internal buffer used to store elements within a channel. Has some overloads for void and unbuffered channels. */
-template<bool is_buffered, typename T, template<typename...> typename BufferQueue>
+template <bool is_buffered, typename T, template <typename...> typename BufferQueue>
 struct channel_buffer;
 
 /** The internal buffer used to store elements within a channel. Has some overloads for void and unbuffered channels. */
-template<typename T, template<typename...> typename BufferQueue>
+template <typename T, template <typename...> typename BufferQueue>
 struct channel_buffer<false, T, BufferQueue> {
     [[nodiscard]] constexpr bool is_empty() { return true; }
 
@@ -178,7 +178,7 @@ struct channel_buffer<false, T, BufferQueue> {
         }
     }
 
-    template<typename U>
+    template <typename U>
     constexpr void push(U&&) {}
 
     constexpr void push() {}
@@ -187,17 +187,15 @@ struct channel_buffer<false, T, BufferQueue> {
 };
 
 /** Helper class for channel_buffer. */
-template<typename T, typename = void>
-struct has_clear : std::false_type {
-};
+template <typename T, typename = void>
+struct has_clear : std::false_type {};
 
 /** Helper class for channel_buffer. */
-template<typename T>
-struct has_clear<T, decltype(void(std::declval<T&>().clear()))> : std::true_type {
-};
+template <typename T>
+struct has_clear<T, decltype(void(std::declval<T&>().clear()))> : std::true_type {};
 
 /** The internal buffer used to store elements within a channel. Has some overloads for void and unbuffered channels. */
-template<typename T, template<typename...> typename BufferQueue>
+template <typename T, template <typename...> typename BufferQueue>
 struct channel_buffer<true, T, BufferQueue> {
     explicit channel_buffer(size_t max_size = std::numeric_limits<size_t>::max()) : _max_size(max_size) {}
 
@@ -225,13 +223,13 @@ struct channel_buffer<true, T, BufferQueue> {
 
     void push(T&& t) { this->_buffer.push(std::move(t)); }
 
- private:
+  private:
     size_t _max_size;
     BufferQueue<T> _buffer;
 };
 
 /** The internal buffer used to store elements within a channel. Has some overloads for void and unbuffered channels. */
-template<template<typename...> typename BufferQueue>
+template <template <typename...> typename BufferQueue>
 struct channel_buffer<true, void, BufferQueue> {
     explicit channel_buffer(size_t max_size = std::numeric_limits<size_t>::max()) : _max_size(max_size), _buffer(0) {}
 
@@ -249,19 +247,19 @@ struct channel_buffer<true, void, BufferQueue> {
 
     void push() { this->_buffer += 1; }
 
- private:
+  private:
     size_t _max_size;
     size_t _buffer;
 };
 
 /** Template argument deduction for the constructor of popper. */
-template<typename F, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename F, bool is_buffered, typename T, template <typename...> typename... Args>
 auto make_popper(channel<is_buffered, T, Args...>& channel, F&& func) {
     return popper<F, is_buffered, T, Args...>(channel, std::forward<F>(func));
 }
 
 /** Template argument deduction for the constructor of pusher. */
-template<typename F, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename F, bool is_buffered, typename T, template <typename...> typename... Args>
 auto make_pusher(channel<is_buffered, T, Args...>& channel, F&& func) {
     return pusher<F, is_buffered, T, Args...>(channel, std::forward<F>(func));
 }
@@ -271,7 +269,7 @@ struct waiting_op_group_base {
     /** Tries to find a "match" for this group by using the given pusher and given popper.
      * If a match was already found, `false` is returned instead and nothing is done.
      * If this is the new match, both objects have their functors called. */
-    template<bool is_buffered, typename T, template<typename...> typename... Args>
+    template <bool is_buffered, typename T, template <typename...> typename... Args>
     bool match(pusher_base<is_buffered, T, Args...>& pusher, popper_base<is_buffered, T, Args...>& popper) {
         assert(pusher._channel == popper._channel);
 
@@ -295,16 +293,16 @@ struct waiting_op_group_base {
     channel_cv_t cv;
     int open_op_channels = 0;
 
- protected:
+  protected:
     bool _match_found = false;
 };
 
 /** Represents a disjunction of pending operations on a channel object.
  * Exactly one of the included operations is supposed to be executed.
  * The class makes sure that at most one will be executed. */
-template<typename... Ops>
+template <typename... Ops>
 struct waiting_op_group final : public waiting_op_group_base {
-    explicit waiting_op_group(Ops& ... ops) : ops(&ops...) {}
+    explicit waiting_op_group(Ops&... ops) : ops(&ops...) {}
 
     waiting_op_group(const waiting_op_group&) = delete;
 
@@ -337,8 +335,8 @@ struct waiting_op_group final : public waiting_op_group_base {
 
     /** Waits until a match is found or the channels of all operations have been closed using a given waiting strategy.
      * Returns `true` if a match was found and `false` otherwise. */
-    template<wait_type wtype, typename... Args>
-    [[nodiscard]] channel_op_status wait(Args&& ... args) {
+    template <wait_type wtype, typename... Args>
+    [[nodiscard]] channel_op_status wait(Args&&... args) {
         static_assert(wtype != wait_type::none);
         auto lock = std::unique_lock<channel_mutex_t>(this->mutex);
         const auto f = [this]() { return this->_match_found || this->open_op_channels == 0; };
@@ -361,15 +359,15 @@ struct waiting_op_group final : public waiting_op_group_base {
         }
     }
 
-    std::tuple<Ops* ...> ops;
+    std::tuple<Ops*...> ops;
 
- private:
+  private:
     bool _active = false;
 };
 
 /** Template argument deduction for the constructor of waiting_op_group. */
-template<typename... Ops>
-waiting_op_group<Ops...> make_waiting_op_group(Ops& ... ops) {
+template <typename... Ops>
+waiting_op_group<Ops...> make_waiting_op_group(Ops&... ops) {
     return waiting_op_group<Ops...>(ops...);
 }
 
@@ -378,30 +376,32 @@ waiting_op_group<Ops...> make_waiting_op_group(Ops& ... ops) {
 /** The main class to represent channels.
  * @tparam is_buffered If `true`, the channel contains an internal buffer to store some objects for use.
  * @tparam T The type of the objects the channel works on.
- * @tparam BufferQueue The type of a queue-like class used for the internal buffer. Not used it `is_buffered` is `false` or `T` is `void`.
+ * @tparam BufferQueue The type of a queue-like class used for the internal buffer. Not used it `is_buffered` is `false`
+ * or `T` is `void`.
  * @tparam OpQueue The type of a deque-like class used for storing actively waiting push/pop operations.
  */
-template<bool is_buffered,
-        typename T,
-        template<typename...>
-        typename BufferQueue,
-        template<typename...>
-        typename OpQueue>
+template <bool is_buffered,
+          typename T,
+          template <typename...>
+          typename BufferQueue,
+          template <typename...>
+          typename OpQueue>
 #if __cpp_concepts >= 201907L
-requires (std::is_default_constructible_v<T> && std::is_move_constructible_v<T> && std::is_move_assignable_v<T> &&
-          std::is_destructible_v<T>) || std::is_void_v<T>
+requires(std::is_default_constructible_v<T>&& std::is_move_constructible_v<T>&& std::is_move_assignable_v<T>&&
+             std::is_destructible_v<T>) ||
+    std::is_void_v<T>
 #endif
-class channel {
- public:
+    class channel {
+  public:
     using value_type = T;
 
     channel() = default;
 
     explicit channel(size_t max_buffer_size)
 #if __cpp_concepts >= 201907L
-    requires(is_buffered)
+        requires(is_buffered)
 #endif
-            : _buffer(max_buffer_size) {
+        : _buffer(max_buffer_size) {
     }
 
     channel(const channel& other) = delete;
@@ -417,8 +417,8 @@ class channel {
         assert(this->_waiting_pops.empty());
     }
 
-    template<wait_type wtype, typename T_ = T, typename... Args>
-    [[nodiscard]] std::enable_if_t<!std::is_void_v<T_>, std::optional<T>> pop_wt(Args&& ... args) {
+    template <wait_type wtype, typename T_ = T, typename... Args>
+    [[nodiscard]] std::enable_if_t<!std::is_void_v<T_>, std::optional<T>> pop_wt(Args&&... args) {
         static_assert(!std::is_void_v<T>);
         auto result = T();
         auto f = [&result](T&& data) { result = std::move(data); };
@@ -430,20 +430,20 @@ class channel {
         }
     }
 
-    template<wait_type wtype, typename T_ = T, typename... Args>
-    [[nodiscard]] std::enable_if_t<std::is_void_v<T_>, bool> pop_wt(Args&& ... args) {
+    template <wait_type wtype, typename T_ = T, typename... Args>
+    [[nodiscard]] std::enable_if_t<std::is_void_v<T_>, bool> pop_wt(Args&&... args) {
         static_assert(std::is_void_v<T>);
         const auto op_status = this->pop_func_wt<wtype>([] {}, std::forward<Args>(args)...);
         return op_status == channel_op_status::success;
     }
 
-    template<wait_type wtype, typename F, typename... Args>
+    template <wait_type wtype, typename F, typename... Args>
 #if __cpp_concepts >= 201907L
     requires requires(F f) {
         f(std::declval<value_type>());
-    } || (requires(F f) { f(); } && std::is_void_v<T>)
-             #endif
-    [[nodiscard]] channel_op_status pop_func_wt(F&& func, Args&& ... args) {
+    } ||(requires(F f) { f(); } && std::is_void_v<T>)
+#endif
+        [[nodiscard]] channel_op_status pop_func_wt(F&& func, Args&&... args) {
         auto lock = std::unique_lock<_detail::channel_mutex_t>(_mutex);
         return this->_pop_func_with_lock_general<wtype>(std::forward<F>(func), lock, std::forward<Args>(args)...);
     }
@@ -456,104 +456,112 @@ class channel {
         return this->pop_wt<wait_type::none>();
     }
 
-    template<typename Rep, typename Period>
+    template <typename Rep, typename Period>
     [[nodiscard]] std::conditional_t<std::is_void_v<T>, bool, std::optional<T>> try_pop_for(
-            const std::chrono::duration<Rep, Period>& rel_time) {
+        const std::chrono::duration<Rep, Period>& rel_time) {
         return this->pop_wt<wait_type::for_>(rel_time);
     }
 
-    template<typename Clock, typename Duration>
+    template <typename Clock, typename Duration>
     [[nodiscard]] std::conditional_t<std::is_void_v<T>, bool, std::optional<T>> try_pop_until(
-            const std::chrono::time_point<Clock, Duration>& timeout_time) {
+        const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->pop_wt<wait_type::until>(timeout_time);
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] channel_op_status pop_func(F&& func) {
         return this->pop_func_wt<wait_type::forever>(std::forward<F>(func));
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] channel_op_status try_pop_func(F&& func) {
         return this->pop_func_wt<wait_type::none>(std::forward<F>(func));
     }
 
-    template<typename F, typename Rep, typename Period>
+    template <typename F, typename Rep, typename Period>
     [[nodiscard]] channel_op_status try_pop_func_for(F&& func, const std::chrono::duration<Rep, Period>& rel_time) {
         return this->pop_func_wt<wait_type::for_>(std::forward<F>(func), rel_time);
     }
 
-    template<typename F, typename Clock, typename Duration>
+    template <typename F, typename Clock, typename Duration>
     [[nodiscard]] channel_op_status try_pop_func_until(F&& func,
                                                        const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->pop_func_wt<wait_type::until>(std::forward<F>(func), timeout_time);
     }
 
-    template<wait_type wtype, typename U, typename T_=T, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0, typename... Args>
+    template <wait_type wtype,
+              typename U,
+              typename T_ = T,
+              typename std::enable_if_t<!std::is_void_v<T_>, int> = 0,
+              typename... Args>
 #if __cpp_concepts >= 201907L
     requires std::convertible_to<U, value_type>
 #endif
-    [[nodiscard]] bool push_wt(U&& data, Args&& ... args) {
+    [[nodiscard]] bool push_wt(U&& data, Args&&... args) {
         static_assert(!std::is_void_v<T>);
         const auto op_status =
-                this->push_func_wt<wtype>([&data]() { return std::forward<U>(data); }, std::forward<Args>(args)...);
+            this->push_func_wt<wtype>([&data]() { return std::forward<U>(data); }, std::forward<Args>(args)...);
         return op_status == channel_op_status::success;
     }
 
-    template<wait_type wtype, typename U = T, typename T_=T, typename std::enable_if_t<std::is_void_v<T_>, int> = 0, typename... Args>
-    [[nodiscard]] bool push_wt(Args&& ... args) {
+    template <wait_type wtype,
+              typename U = T,
+              typename T_ = T,
+              typename std::enable_if_t<std::is_void_v<T_>, int> = 0,
+              typename... Args>
+    [[nodiscard]] bool push_wt(Args&&... args) {
         static_assert(std::is_void_v<T>);
         const auto op_status = this->push_func_wt<wtype>([] {}, std::forward<Args>(args)...);
         return op_status == channel_op_status::success;
     }
 
-    template<wait_type wtype, typename F, typename... Args>
+    template <wait_type wtype, typename F, typename... Args>
 #if __cpp_concepts >= 201907L
     requires requires(F f) {
         { f() } -> std::convertible_to<value_type>;
     }
 #endif
-    [[nodiscard]] channel_op_status push_func_wt(F&& func, Args&& ... args) {
+    [[nodiscard]] channel_op_status push_func_wt(F&& func, Args&&... args) {
         auto lock = std::unique_lock<_detail::channel_mutex_t>(_mutex);
         return this->_push_func_with_lock_general<wtype>(std::forward<F>(func), lock, std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    [[nodiscard]] bool push(Args&& ... args) {
+    template <typename... Args>
+    [[nodiscard]] bool push(Args&&... args) {
         return this->push_wt<wait_type::forever>(std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    [[nodiscard]] bool try_push(Args&& ... args) {
+    template <typename... Args>
+    [[nodiscard]] bool try_push(Args&&... args) {
         return this->push_wt<wait_type::none>(std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    [[nodiscard]] bool try_push_for(Args&& ... args) {
+    template <typename... Args>
+    [[nodiscard]] bool try_push_for(Args&&... args) {
         return this->push_wt<wait_type::for_>(std::forward<Args>(args)...);
     }
 
-    template<typename... Args>
-    [[nodiscard]] bool try_push_until(Args&& ... args) {
+    template <typename... Args>
+    [[nodiscard]] bool try_push_until(Args&&... args) {
         return this->push_wt<wait_type::until>(std::forward<Args>(args)...);
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] channel_op_status push_func(F&& func) {
         return this->push_func_wt<wait_type::forever>(std::forward<F>(func));
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] channel_op_status try_push_func(F&& func) {
         return this->push_func_wt<wait_type::none>(std::forward<F>(func));
     }
 
-    template<typename F, typename Rep, typename Period>
+    template <typename F, typename Rep, typename Period>
     [[nodiscard]] channel_op_status try_push_func_for(F&& func, const std::chrono::duration<Rep, Period>& rel_time) {
         return this->push_func_wt<wait_type::for_>(std::forward<F>(func), rel_time);
     }
 
-    template<typename F, typename Clock, typename Duration>
+    template <typename F, typename Clock, typename Duration>
     [[nodiscard]] channel_op_status try_push_func_until(F&& func,
                                                         const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->push_func_wt<wait_type::until>(std::forward<F>(func), timeout_time);
@@ -572,7 +580,8 @@ class channel {
     /** Clears only(!) the buffer, not pending push operations. */
     size_t clear() {
         const auto lock = std::lock_guard<_detail::channel_mutex_t>(this->_mutex);
-        const auto size = this->_buffer.clear();;
+        const auto size = this->_buffer.clear();
+        ;
 
         // If there are any "push" operations pending, execute the next one to re-fill the buffer.
         if (this->_open && !this->_waiting_pushes.empty()) {
@@ -625,7 +634,7 @@ class channel {
         return !this->_open;
     }
 
- private:
+  private:
     using popper_t = _detail::popper_base<is_buffered, T, BufferQueue, OpQueue>;
     using pusher_t = _detail::pusher_base<is_buffered, T, BufferQueue, OpQueue>;
 
@@ -649,8 +658,8 @@ class channel {
      * @param args Any additional arguments to the waiting process.
      * @return The success status of the operation.
      */
-    template<wait_type wtype, typename Op, typename Lock, typename... Args>
-    [[nodiscard]] channel_op_status _pop_func_with_lock_general(Op&& op, Lock& lock, Args&& ... args) {
+    template <wait_type wtype, typename Op, typename Lock, typename... Args>
+    [[nodiscard]] channel_op_status _pop_func_with_lock_general(Op&& op, Lock& lock, Args&&... args) {
         // Convert `op` into a "popper" if necessary.
         if constexpr (!std::is_base_of_v<popper_t, std::decay_t<Op>>) {
             auto popper = _detail::make_popper(*this, std::forward<Op>(op));
@@ -731,8 +740,8 @@ class channel {
      * @param args Any additional arguments to the waiting process.
      * @return The success status of the operation.
      */
-    template<wait_type wtype, typename Op, typename Lock, typename... Args>
-    [[nodiscard]] channel_op_status _push_func_with_lock_general(Op&& op, Lock& lock, Args&& ... args) {
+    template <wait_type wtype, typename Op, typename Lock, typename... Args>
+    [[nodiscard]] channel_op_status _push_func_with_lock_general(Op&& op, Lock& lock, Args&&... args) {
         // Convert `op` into a "pusher" if necessary.
         if constexpr (!std::is_base_of_v<pusher_t, std::decay_t<Op>>) {
             auto pusher = _detail::make_pusher(*this, std::forward<Op>(op));
@@ -781,7 +790,7 @@ class channel {
 namespace _detail {
 
 /** Helper base class for `popper_base` for non-void types. */
-template<typename T>
+template <typename T>
 struct popper_base_nonvoid {
     virtual void operator()(T&&) = 0;
 };
@@ -794,7 +803,7 @@ struct popper_base_void {
 /** Abstract base class of `popper` to remove the dependency on a specific callable type.
  * Most of the logic is implemented here though.
  * This class represents a "pop" operation on a channel. */
-template<bool is_buffered, typename T, template<typename...> typename... Args>
+template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, popper_base_nonvoid<T>> {
     using channel_t = channel<is_buffered, T, Args...>;
 
@@ -814,8 +823,8 @@ struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, pop
         std::erase(this->_channel->_waiting_pops, this);
 #else
         this->_channel->_waiting_pops.erase(
-                std::remove(this->_channel->_waiting_pops.begin(), this->_channel->_waiting_pops.end(), this),
-                this->_channel->_waiting_pops.end());
+            std::remove(this->_channel->_waiting_pops.begin(), this->_channel->_waiting_pops.end(), this),
+            this->_channel->_waiting_pops.end());
 #endif
         this->_active = false;
     }
@@ -828,8 +837,8 @@ struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, pop
         std::erase(this->_channel->_waiting_pops, this);
 #else
         this->_channel->_waiting_pops.erase(
-                std::remove(this->_channel->_waiting_pops.begin(), this->_channel->_waiting_pops.end(), this),
-                this->_channel->_waiting_pops.end());
+            std::remove(this->_channel->_waiting_pops.begin(), this->_channel->_waiting_pops.end(), this),
+            this->_channel->_waiting_pops.end());
 #endif
         this->_active = false;
         this->_parent->open_op_channels -= 1;
@@ -842,8 +851,8 @@ struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, pop
 
     void set_op_group(waiting_op_group_base* parent) { this->_parent = parent; }
 
-    template<wait_type wtype, typename... Brgs>
-    [[nodiscard]] channel_op_status select(Brgs&& ... brgs) {
+    template <wait_type wtype, typename... Brgs>
+    [[nodiscard]] channel_op_status select(Brgs&&... brgs) {
         return this->_channel->template pop_func_wt<wtype>(*this, std::forward<Brgs>(brgs)...);
     }
 
@@ -855,7 +864,7 @@ struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, pop
 
     [[nodiscard]] channel_mutex_t& channel_mutex() const { return this->_channel->_mutex; }
 
- private:
+  private:
     friend class waiting_op_group_base;
 
     bool _active = false;
@@ -864,12 +873,12 @@ struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, pop
 };
 
 /** Subclass of `popper_base` for a specific callback type and non-void channel elements. */
-template<typename F, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename F, bool is_buffered, typename T, template <typename...> typename... Args>
 struct popper final : public popper_base<is_buffered, T, Args...> {
     using base_t = popper_base<is_buffered, T, Args...>;
     using channel_t = typename base_t::channel_t;
 
-    template<typename G>
+    template <typename G>
     explicit popper(channel_t& channel, G&& func) : base_t(channel), func(std::forward<G>(func)) {}
 
     void operator()(T&& t) final { std::invoke(this->func, std::move(t)); }
@@ -878,12 +887,12 @@ struct popper final : public popper_base<is_buffered, T, Args...> {
 };
 
 /** Subclass of `popper_base` for a specific callback type and void channel elements. */
-template<typename F, bool is_buffered, template<typename...> typename... Args>
+template <typename F, bool is_buffered, template <typename...> typename... Args>
 struct popper<F, is_buffered, void, Args...> final : public popper_base<is_buffered, void, Args...> {
     using base_t = popper_base<is_buffered, void, Args...>;
     using channel_t = typename base_t::channel_t;
 
-    template<typename G>
+    template <typename G>
     explicit popper(channel_t& channel, G&& func) : base_t(channel), func(std::forward<G>(func)) {}
 
     void operator()() final { std::invoke(this->func); }
@@ -894,7 +903,7 @@ struct popper<F, is_buffered, void, Args...> final : public popper_base<is_buffe
 /** Abstract base class of `pusher` to remove the dependency on a specific callable type.
  * Most of the logic is implemented here though.
  * This class represents a "push" operation on a channel. */
-template<bool is_buffered, typename T, template<typename...> typename... Args>
+template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct pusher_base {
     using channel_t = channel<is_buffered, T, Args...>;
 
@@ -916,8 +925,8 @@ struct pusher_base {
         std::erase(this->_channel->_waiting_pushes, this);
 #else
         this->_channel->_waiting_pushes.erase(
-                std::remove(this->_channel->_waiting_pushes.begin(), this->_channel->_waiting_pushes.end(), this),
-                this->_channel->_waiting_pushes.end());
+            std::remove(this->_channel->_waiting_pushes.begin(), this->_channel->_waiting_pushes.end(), this),
+            this->_channel->_waiting_pushes.end());
 #endif
         this->_active = false;
     }
@@ -930,8 +939,8 @@ struct pusher_base {
         std::erase(this->_channel->_waiting_pushes, this);
 #else
         this->_channel->_waiting_pushes.erase(
-                std::remove(this->_channel->_waiting_pushes.begin(), this->_channel->_waiting_pushes.end(), this),
-                this->_channel->_waiting_pushes.end());
+            std::remove(this->_channel->_waiting_pushes.begin(), this->_channel->_waiting_pushes.end(), this),
+            this->_channel->_waiting_pushes.end());
 #endif
         this->_active = false;
         this->_parent->open_op_channels -= 1;
@@ -944,8 +953,8 @@ struct pusher_base {
 
     void set_op_group(waiting_op_group_base* parent) { this->_parent = parent; }
 
-    template<wait_type wtype, typename... Brgs>
-    [[nodiscard]] channel_op_status select(Brgs&& ... brgs) {
+    template <wait_type wtype, typename... Brgs>
+    [[nodiscard]] channel_op_status select(Brgs&&... brgs) {
         return this->_channel->template push_func_wt<wtype>(*this, std::forward<Brgs>(brgs)...);
     }
 
@@ -957,7 +966,7 @@ struct pusher_base {
 
     [[nodiscard]] channel_mutex_t& channel_mutex() const { return this->_channel->_mutex; }
 
- private:
+  private:
     friend class waiting_op_group_base;
 
     bool _active = false;
@@ -966,12 +975,12 @@ struct pusher_base {
 };
 
 /** Subclass of `pusher_base` for a specific callback type and non-void channel elements. */
-template<typename F, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename F, bool is_buffered, typename T, template <typename...> typename... Args>
 struct pusher final : public pusher_base<is_buffered, T, Args...> {
     using base_t = pusher_base<is_buffered, T, Args...>;
     using channel_t = typename base_t::channel_t;
 
-    template<typename G>
+    template <typename G>
     explicit pusher(channel_t& channel, G&& func) : base_t(channel), func(std::forward<G>(func)) {}
 
     T operator()() final { return std::invoke(this->func); }
@@ -980,12 +989,12 @@ struct pusher final : public pusher_base<is_buffered, T, Args...> {
 };
 
 /** Subclass of `pusher_base` for a specific callback type and non-void channel elements. */
-template<typename F, bool is_buffered, template<typename...> typename... Args>
+template <typename F, bool is_buffered, template <typename...> typename... Args>
 struct pusher<F, is_buffered, void, Args...> final : public pusher_base<is_buffered, void, Args...> {
     using base_t = pusher_base<is_buffered, void, Args...>;
     using channel_t = typename base_t::channel_t;
 
-    template<typename G>
+    template <typename G>
     explicit pusher(channel_t& channel, G&& func) : base_t(channel), func(std::forward<G>(func)) {}
 
     void operator()() final { std::invoke(this->func); }
@@ -996,20 +1005,20 @@ struct pusher<F, is_buffered, void, Args...> final : public pusher_base<is_buffe
 }  // namespace _detail
 
 /** A "view" of a channel that only allows reading operations. */
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_read_view {
- public:
+  public:
     using value_type = typename ChannelT::value_type;
 
     explicit channel_read_view(ChannelT& channel) : _channel(channel) {}
 
-    template<wait_type wtype, typename... Args>
-    [[nodiscard]] auto pop_wt(Args&& ... args) {
+    template <wait_type wtype, typename... Args>
+    [[nodiscard]] auto pop_wt(Args&&... args) {
         return this->_channel.get().template pop_wt<wtype>(std::forward<Args>(args)...);
     }
 
-    template<wait_type wtype, typename F, typename... Args>
-    [[nodiscard]] auto pop_func_wt(F&& func, Args&& ... args) {
+    template <wait_type wtype, typename F, typename... Args>
+    [[nodiscard]] auto pop_func_wt(F&& func, Args&&... args) {
         return this->_channel.get().template pop_func_wt<wtype>(std::forward<F>(func), std::forward<Args>(args)...);
     }
 
@@ -1017,32 +1026,32 @@ class channel_read_view {
 
     [[nodiscard]] auto try_pop() { return this->_channel.get().try_pop(); }
 
-    template<typename Rep, typename Period>
+    template <typename Rep, typename Period>
     [[nodiscard]] auto try_pop_for(const std::chrono::duration<Rep, Period>& rel_time) {
         return this->_channel.get().try_pop_for(rel_time);
     }
 
-    template<typename Clock, typename Duration>
+    template <typename Clock, typename Duration>
     [[nodiscard]] auto try_pop_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->_channel.get().try_pop_until(timeout_time);
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] auto pop_func(F&& func) {
         return this->_channel.get().pop_func(std::forward<F>(func));
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] auto try_pop_func(F&& func) {
         return this->_channel.get().try_pop(std::forward<F>(func));
     }
 
-    template<typename F, typename Rep, typename Period>
+    template <typename F, typename Rep, typename Period>
     [[nodiscard]] auto try_pop_func_for(F&& func, const std::chrono::duration<Rep, Period>& rel_time) {
         return this->_channel.get().try_pop_for(std::forward<F>(func), rel_time);
     }
 
-    template<typename F, typename Clock, typename Duration>
+    template <typename F, typename Clock, typename Duration>
     [[nodiscard]] auto try_pop_func_until(F&& func, const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->_channel.get().try_pop_until(std::forward<F>(func), timeout_time);
     }
@@ -1053,85 +1062,110 @@ class channel_read_view {
 
     [[nodiscard]] channel_read_view<ChannelT> read_view() { return channel_read_view(this->_channel); }
 
- protected:
+  protected:
     std::reference_wrapper<ChannelT> _channel;
 };
 
 /** A "view" of a channel that only allows writing operations. */
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_write_view {
- public:
+  public:
     using value_type = typename ChannelT::value_type;
 
     explicit channel_write_view(ChannelT& channel) : _channel(channel) {}
 
-    template<wait_type wtype, typename U, typename T_ = value_type, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0, typename... Args>
-    [[nodiscard]] auto push_wt(U&& data, Args&& ... args) {
+    template <wait_type wtype,
+              typename U,
+              typename T_ = value_type,
+              typename std::enable_if_t<!std::is_void_v<T_>, int> = 0,
+              typename... Args>
+    [[nodiscard]] auto push_wt(U&& data, Args&&... args) {
         return this->_channel.get().template push_wt<wtype>(std::forward<U>(data), std::forward<Args>(args)...);
     }
 
-    template<typename U, typename T_ = value_type, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
+    template <typename U, typename T_ = value_type, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
     [[nodiscard]] auto push(U&& data) {
         return this->_channel.get().push(std::forward<U>(data));
     }
 
-    template<typename U, typename T_ = value_type, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
+    template <typename U, typename T_ = value_type, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
     [[nodiscard]] auto try_push(U&& data) {
         return this->_channel.get().try_push(std::forward<U>(data));
     }
 
-    template<typename U, typename Rep, typename Period, typename T_ = value_type, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
+    template <typename U,
+              typename Rep,
+              typename Period,
+              typename T_ = value_type,
+              typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
     [[nodiscard]] auto try_push_for(U&& data, const std::chrono::duration<Rep, Period>& rel_time) {
         return this->_channel.get().try_push_for(std::forward<U>(data), rel_time);
     }
 
-    template<typename U, typename Clock, typename Duration, typename T_ = value_type, typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
+    template <typename U,
+              typename Clock,
+              typename Duration,
+              typename T_ = value_type,
+              typename std::enable_if_t<!std::is_void_v<T_>, int> = 0>
     [[nodiscard]] auto try_push_until(U&& data, const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->_channel.get().try_push_until(std::forward<U>(data), timeout_time);
     }
 
-    template<wait_type wtype, typename T_ = value_type, typename std::enable_if_t<std::is_void_v<T_>, int> = 0, typename... Args>
-    [[nodiscard]] auto push_wt(Args&& ... args) {
+    template <wait_type wtype,
+              typename T_ = value_type,
+              typename std::enable_if_t<std::is_void_v<T_>, int> = 0,
+              typename... Args>
+    [[nodiscard]] auto push_wt(Args&&... args) {
         return this->_channel.get().template push_wt<wtype>(std::forward<Args>(args)...);
     }
 
-    template<typename T_ = value_type, typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
-    [[nodiscard]] auto push() { return this->_channel.get().push(); }
+    template <typename T_ = value_type, typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
+    [[nodiscard]] auto push() {
+        return this->_channel.get().push();
+    }
 
-    template<typename T_ = value_type, typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
-    [[nodiscard]] auto try_push() { return this->_channel.get().try_push(); }
+    template <typename T_ = value_type, typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
+    [[nodiscard]] auto try_push() {
+        return this->_channel.get().try_push();
+    }
 
-    template<typename Rep, typename Period, typename T_ = value_type, typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
+    template <typename Rep,
+              typename Period,
+              typename T_ = value_type,
+              typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
     [[nodiscard]] auto try_push_for(const std::chrono::duration<Rep, Period>& rel_time) {
         return this->_channel.get().try_push_for(rel_time);
     }
 
-    template<typename Clock, typename Duration, typename T_ = value_type, typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
+    template <typename Clock,
+              typename Duration,
+              typename T_ = value_type,
+              typename std::enable_if_t<std::is_void_v<T_>, int> = 0>
     [[nodiscard]] auto try_push_until(const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->_channel.get().try_push_until(timeout_time);
     }
 
-    template<wait_type wtype, typename F, typename... Args>
-    [[nodiscard]] auto push_func_wt(F&& func, Args&& ... args) {
+    template <wait_type wtype, typename F, typename... Args>
+    [[nodiscard]] auto push_func_wt(F&& func, Args&&... args) {
         return this->_channel.get().template push_func_wt<wtype>(std::forward<F>(func), std::forward<Args>(args)...);
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] auto push_func(F&& func) {
         return this->_channel.get().push_func(std::forward<F>(func));
     }
 
-    template<typename F>
+    template <typename F>
     [[nodiscard]] auto try_push_func(F&& func) {
         return this->_channel.get().try_push_func(std::forward<F>(func));
     }
 
-    template<typename F, typename Rep, typename Period>
+    template <typename F, typename Rep, typename Period>
     [[nodiscard]] auto try_push_func_for(F&& func, const std::chrono::duration<Rep, Period>& rel_time) {
         return this->_channel.get().try_push_func_for(std::forward<F>(func), rel_time);
     }
 
-    template<typename F, typename Clock, typename Duration>
+    template <typename F, typename Clock, typename Duration>
     [[nodiscard]] auto try_push_func_until(F&& func, const std::chrono::time_point<Clock, Duration>& timeout_time) {
         return this->_channel.get().try_push_func_until(std::forward<F>(func), timeout_time);
     }
@@ -1144,14 +1178,14 @@ class channel_write_view {
 
     size_t clear() { return this->_channel.get().clear(); }
 
- private:
+  private:
     std::reference_wrapper<ChannelT> _channel;
 };
 
 /** An iterator to "pop" elements from a channel repeatedly. */
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_pop_iterator {
- public:
+  public:
     using value_type = typename ChannelT::value_type;
     using reference = std::add_lvalue_reference_t<value_type>;
     using pointer = value_type*;
@@ -1162,13 +1196,13 @@ class channel_pop_iterator {
 
     explicit channel_pop_iterator(ChannelT& channel) : _channel(channel) {}
 
-    auto operator++(int)& {
+    auto operator++(int) & {
         auto proxy = _post_incr_proxy(std::move(**this));
         ++(*this);
         return proxy;
     }
 
-    channel_pop_iterator& operator++()& {
+    channel_pop_iterator& operator++() & {
         if (!this->_last_value) {
             this->_advance(false);
         } else {
@@ -1199,7 +1233,7 @@ class channel_pop_iterator {
 
     [[nodiscard]] bool operator!=(const channel_pop_iterator& other) const { return !(*this == other); }
 
- private:
+  private:
     mutable std::optional<std::reference_wrapper<ChannelT>> _channel;
     mutable std::conditional_t<std::is_void_v<value_type>, bool, std::optional<value_type>> _last_value{};
 
@@ -1215,7 +1249,7 @@ class channel_pop_iterator {
     }
 
     struct _post_incr_proxy {
-        template<typename U>
+        template <typename U>
         _post_incr_proxy(U&& u) : value(std::forward<U>(u)) {}
 
         value_type operator*() { return std::move(value); }
@@ -1225,11 +1259,11 @@ class channel_pop_iterator {
 };
 
 /** An iterator to "push" elements to a channel repeatedly. */
-template<typename ChannelT>
+template <typename ChannelT>
 class channel_push_iterator {
     struct _pusher;
 
- public:
+  public:
     using value_type = _pusher;
     using reference = value_type&;
     using pointer = void;
@@ -1240,30 +1274,30 @@ class channel_push_iterator {
 
     explicit channel_push_iterator(ChannelT& channel) : _channel(channel) {}
 
-    channel_push_iterator operator++(int)& { return *this; }
+    channel_push_iterator operator++(int) & { return *this; }
 
-    channel_push_iterator& operator++()& { return *this; }
+    channel_push_iterator& operator++() & { return *this; }
 
     [[nodiscard]] _pusher operator*() const { return _pusher(this->_channel.value()); }
 
- private:
+  private:
     std::optional<std::reference_wrapper<ChannelT>> _channel;
 
     struct _pusher {
         explicit _pusher(ChannelT& channel) : _channel(&channel) {}
 
-        template<typename U>
+        template <typename U>
 #if __cpp_concepts >= 201907L
         requires std::convertible_to<U, typename ChannelT::value_type>
 #endif
-        void operator=(U&& data) const { (void) this->_channel->push(std::forward<U>(data)); }
+        void operator=(U&& data) const { (void)this->_channel->push(std::forward<U>(data)); }
 
         ChannelT* _channel;
     };
 };
 
 /** From a channel and a callback function, creates a popper object that can be used for `select`. */
-template<typename Op, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
 #if __cpp_concepts >= 201907L
 requires requires(Op f) {
     f(std::declval<typename channel<is_buffered, T, Args...>::value_type>());
@@ -1274,7 +1308,7 @@ requires requires(Op f) {
 }
 
 /** From a channel and a callback function, creates a pusher object that can be used for `select`. */
-template<typename Op, bool is_buffered, typename T, template<typename...> typename... Args>
+template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
 #if __cpp_concepts >= 201907L
 requires requires(Op f) {
     { f() } -> std::convertible_to<typename channel<is_buffered, T, Args...>::value_type>;
@@ -1285,95 +1319,55 @@ requires requires(Op f) {
 }
 
 /** User-level "select" function. */
-template<typename... Ops>
-[[nodiscard]] channel_op_status select(Ops&& ... ops) {
+template <typename... Ops>
+[[nodiscard]] channel_op_status select(Ops&&... ops) {
     auto manager = _detail::select_manager(ops...);
     return manager.template select<wait_type::forever>();
 }
 
 /** User-level "select" function. */
-template<typename... Ops>
-[[nodiscard]] channel_op_status try_select(Ops&& ... ops) {
+template <typename... Ops>
+[[nodiscard]] channel_op_status try_select(Ops&&... ops) {
     auto manager = _detail::select_manager(ops...);
     return manager.template select<wait_type::none>();
 }
 
 /** User-level "select" function. */
-template<typename Rep, typename Period, typename... Ops>
-[[nodiscard]] channel_op_status try_select_for(const std::chrono::duration<Rep, Period>& rel_time, Ops&& ... ops) {
+template <typename Rep, typename Period, typename... Ops>
+[[nodiscard]] channel_op_status try_select_for(const std::chrono::duration<Rep, Period>& rel_time, Ops&&... ops) {
     auto manager = _detail::select_manager(ops...);
     return manager.template select<wait_type::for_>(rel_time);
 }
 
 /** User-level "select" function. */
-template<typename Clock, typename Duration, typename... Ops>
-[[nodiscard]] channel_op_status
-try_select_until(const std::chrono::time_point<Clock, Duration>& timeout_time, Ops&& ... ops) {
+template <typename Clock, typename Duration, typename... Ops>
+[[nodiscard]] channel_op_status try_select_until(const std::chrono::time_point<Clock, Duration>& timeout_time,
+                                                 Ops&&... ops) {
     auto manager = _detail::select_manager(ops...);
     return manager.template select<wait_type::until>(timeout_time);
-}
-
-/** User-level "select" function. */
-template<typename... Ops>
-channel_op_status loop_select(Ops&& ... ops) {
-    auto status = channel_op_status{};
-    do {
-        status = select(ops...);
-    } while (status == channel_op_status::success);
-    return status;
-}
-
-/** User-level "select" function. */
-template<typename... Ops>
-channel_op_status loop_try_select(Ops&& ... ops) {
-    auto status = channel_op_status{};
-    do {
-        status = try_select(ops...);
-    } while (status == channel_op_status::success);
-    return status;
-}
-
-/** User-level "select" function. */
-template<typename Rep, typename Period, typename... Ops>
-channel_op_status loop_try_select_for(const std::chrono::duration<Rep, Period>& rel_time, Ops&& ... ops) {
-    auto status = channel_op_status{};
-    do {
-        status = try_select_for(rel_time, ops...);
-    } while (status == channel_op_status::success);
-    return status;
-}
-
-/** User-level "select" function. */
-template<typename Clock, typename Duration, typename... Ops>
-channel_op_status loop_try_select_until(const std::chrono::time_point<Clock, Duration>& timeout_time, Ops&& ... ops) {
-    auto status = channel_op_status{};
-    do {
-        status = try_select_until(timeout_time, ops...);
-    } while (status == channel_op_status::success);
-    return status;
 }
 
 namespace _detail {
 
 /** select_manager takes care of all operations with in a call to a function of the "select" family.
  * This is a special case for a single op. */
-template<typename Op>
+template <typename Op>
 struct select_manager<Op> {
     explicit select_manager(Op& op) : _op(&op) {}
 
-    template<wait_type wtype, typename... Args>
-    [[nodiscard]] channel_op_status select(Args&& ... args) {
+    template <wait_type wtype, typename... Args>
+    [[nodiscard]] channel_op_status select(Args&&... args) {
         return this->_op->template select<wtype>(std::forward<Args>(args)...);
     }
 
- private:
+  private:
     Op* const _op;
 };
 
 /** select_manager takes care of all operations with in a call to a function of the "select" family. */
-template<typename... Ops>
+template <typename... Ops>
 struct select_manager {
-    explicit select_manager(Ops& ... ops) : _ops(ops...) {}
+    explicit select_manager(Ops&... ops) : _ops(ops...) {}
 
     select_manager(const select_manager&) = delete;
 
@@ -1386,8 +1380,8 @@ struct select_manager {
     ~select_manager() = default;
 
     /** Performs a general-purpose "select" operation with the given waiting strategy on the included operations. */
-    template<wait_type wtype, typename... Args>
-    channel_op_status select(Args&& ... args) {
+    template <wait_type wtype, typename... Args>
+    channel_op_status select(Args&&... args) {
         const auto first_pass_status = this->_perform_select_pass();
         if (first_pass_status == channel_op_status::success) {
             return channel_op_status::success;
@@ -1402,12 +1396,14 @@ struct select_manager {
         }
     }
 
- private:
+  private:
     waiting_op_group<Ops...> _ops;
 
     /** The first step that is done in a "select" call.
-     * With as little overhead as possible, all ops are tried to be executed in a random order (to be fair over multiple calls).
-     * If any op could be selected, returns `success`. If all channels are closed, returns `closed`. Otherwise, returns `unavailable`. */
+     * With as little overhead as possible, all ops are tried to be executed in a random order (to be fair over multiple
+     * calls).
+     * If any op could be selected, returns `success`. If all channels are closed, returns `closed`. Otherwise, returns
+     * `unavailable`. */
     [[nodiscard]] channel_op_status _perform_select_pass() {
         // Find a random order of all passed ops.
         auto random_order_indices = std::array<size_t, sizeof...(Ops)>();
@@ -1444,8 +1440,8 @@ struct select_manager {
                 return;
             }
             const auto already_locked_pair =
-                    std::find_if(already_locked.begin(), already_locked.end(),
-                                 [op](const auto& pair) { return pair.first == &op->channel_mutex(); });
+                std::find_if(already_locked.begin(), already_locked.end(),
+                             [op](const auto& pair) { return pair.first == &op->channel_mutex(); });
             if (already_locked_pair == already_locked.end()) {
                 locks[i] = std::unique_lock<channel_mutex_t>(op->channel_mutex());
                 already_locked.emplace_back(&op->channel_mutex(), i);
@@ -1467,9 +1463,9 @@ struct select_manager {
 
 namespace _detail {
 
-template<size_t I>
+template <size_t I>
 struct visit_impl {
-    template<typename T, typename F>
+    template <typename T, typename F>
     static void visit(T& tup, size_t idx, F fun) {
         if (idx == I - 1)
             fun(std::get<I - 1>(tup));
@@ -1478,33 +1474,33 @@ struct visit_impl {
     }
 };
 
-template<>
+template <>
 struct visit_impl<0> {
-    template<typename T, typename F>
+    template <typename T, typename F>
     static void visit(T& tup, size_t idx, F fun) {
         assert(false);
     }
 };
 
 /** Calls a function with the ith element of a tuple. Basically std::get at runtime. */
-template<typename F, typename... Ts>
+template <typename F, typename... Ts>
 void visit_at(const std::tuple<Ts...>& tup, size_t idx, F fun) {
     visit_impl<sizeof...(Ts)>::visit(tup, idx, fun);
 }
 
 /** Calls a function with the ith element of a tuple. Basically std::get at runtime. */
-template<typename F, typename... Ts>
+template <typename F, typename... Ts>
 void visit_at(std::tuple<Ts...>& tup, size_t idx, F fun) {
     visit_impl<sizeof...(Ts)>::visit(tup, idx, fun);
 }
 
-template<typename T, typename F, size_t... Is>
+template <typename T, typename F, size_t... Is>
 void for_each_in_tuple_impl(T&& t, F f, std::integer_sequence<size_t, Is...>) {
     auto l = {(f(Is, std::get<Is>(t)), 0)...};
 }
 
 /** Calls a functor object for each element in a tuple. */
-template<typename... Ts, typename F>
+template <typename... Ts, typename F>
 void for_each_in_tuple(const std::tuple<Ts...>& t, F f) {
     for_each_in_tuple_impl(t, f, std::make_integer_sequence<size_t, sizeof...(Ts)>());
 }
@@ -1512,7 +1508,7 @@ void for_each_in_tuple(const std::tuple<Ts...>& t, F f) {
 /** Based on xoshiro128++ by by David Blackman and Sebastiano Vigna (vigna@acm.org)
  * Fast 32-bit PRN generator that can be constructed multiple times, yielding different seeds every time. */
 class thread_local_randomizer {
- public:
+  public:
     using seed_t = std::array<std::uint32_t, 4>;
 
     /** Initializes a new `thread_local_randomizer` instance with a new seed. */
@@ -1528,7 +1524,7 @@ class thread_local_randomizer {
     /** Generates a new random number. */
     std::uint32_t operator()(std::uint32_t end) { return _next_seed(this->_seed) % end; }
 
- private:
+  private:
     explicit thread_local_randomizer(const seed_t& seed) : _seed(seed) {}
 
     static seed_t _initialize_global_seed() {
@@ -1583,7 +1579,7 @@ class thread_local_randomizer {
 };
 
 /** Helper implementation for `fill_with_random_indices`. */
-template<size_t N>
+template <size_t N>
 struct fill_with_random_indices_impl {
     void operator()(std::array<size_t, N>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
@@ -1592,12 +1588,12 @@ struct fill_with_random_indices_impl {
     }
 };
 
-template<>
+template <>
 struct fill_with_random_indices_impl<1> {
     void operator()(std::array<size_t, 1>& indices) { indices[0] = 0; }
 };
 
-template<>
+template <>
 struct fill_with_random_indices_impl<2> {
     void operator()(std::array<size_t, 2>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
@@ -1612,7 +1608,7 @@ struct fill_with_random_indices_impl<2> {
     }
 };
 
-template<>
+template <>
 struct fill_with_random_indices_impl<3> {
     void operator()(std::array<size_t, 3>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
@@ -1639,7 +1635,7 @@ struct fill_with_random_indices_impl<3> {
     }
 };
 
-template<>
+template <>
 struct fill_with_random_indices_impl<4> {
     void operator()(std::array<size_t, 4>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
@@ -1720,7 +1716,7 @@ struct fill_with_random_indices_impl<4> {
     }
 };
 
-template<>
+template <>
 struct fill_with_random_indices_impl<5> {
     void operator()(std::array<size_t, 5>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
@@ -2090,7 +2086,7 @@ struct fill_with_random_indices_impl<5> {
 };
 
 /** Fills the given array with numbers from 0 to N-1 in a random order. */
-template<size_t N>
+template <size_t N>
 static void fill_with_random_indices(std::array<size_t, N>& indices) {
     fill_with_random_indices_impl<N>()(indices);
 }

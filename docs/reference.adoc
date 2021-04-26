@@ -4,11 +4,13 @@
 This document offers a complete reference for all public types and functions in Copper.
 All elements are contained within the namespace `copper`, which is implicitly omitted in this reference documents.
 
-Function signatures shown in this document are not necessarily the actual implementation in code. They only represent their behavior and their usage, while striving to be more readable as a reference compared to the actual lengthy definitions.
+Function signatures shown in this document are not necessarily the actual implementation in code.
+They only represent their behavior and their usage, while striving to be more readable as a reference compared to the actual lengthy definitions.
 
 == Channels
 
-_Channels_ are the core type of Copper. They represent a _queue_ objects, sending (or "pushing") messages of type `T` from one direction to another, where they are received (or "popped").
+_Channels_ are the core type of Copper.
+They represent a _queue_ objects, sending (or "pushing") messages of type `T` from one direction to another, where they are received (or "popped").
 
 [source,c++]
 ----
@@ -21,18 +23,29 @@ template<
 class channel;
 ----
 
-`is_buffered` distinguishes _buffered_ and _unbuffered_ channels. There are type aliases `copper::buffered_channel` and `copper::unbuffered_channel` expecting the same template arguments, except for `is_buffered`. See the sections below for more details on their differences.
+`is_buffered` distinguishes _buffered_ and _unbuffered_ channels.
+There are type aliases `copper::buffered_channel` and `copper::unbuffered_channel` expecting the same template arguments, except for `is_buffered`.
+See the sections below for more details on their differences.
 
-`T` is the type of the messages that are passed by this channel. It needs to be default constructible, move constructible, move assignable, and destructible. The only exception is `T = void`. See <<Void channels>> for more details.
+`T` is the type of the messages that are passed by this channel.
+It needs to be default constructible, move constructible, move assignable, and destructible.
+The only exception is `T = void`.
+See <<Void channels>> for more details.
 
-`BufferQueue` is the type used for the internal buffer of messages. It is only used when `is_buffered` is `true` and `T` is not `void`. It needs to satisfy basic operations on a queue like `std::queue` does; specifically, it needs to support `push`, `pop`, and `front`.
+`BufferQueue` is the type used for the internal buffer of messages.
+It is only used when `is_buffered` is `true` and `T` is not `void`.
+It needs to satisfy basic operations on a queue like `std::queue` does; specifically, it needs to support `push`, `pop`, and `front`.
 
-`OpQueue` is the type of the container used to store pending operations on a channel. In addition to being used as a queue, it also needs to support erasing elements at arbitrary positions. It defaults to `std::dequeue`.
+`OpQueue` is the type of the container used to store pending operations on a channel.
+In addition to being used as a queue, it also needs to support erasing elements at arbitrary positions.
+It defaults to `std::dequeue`.
 
 
 === Unbuffered & Buffered
 
-_Buffered_ channels contain an internal queue to store messages for later use. That means a message can be pushed into the channel at an arbitrary point before it will be returned by a pop again later. They are the more "general use" choice of the two and provide speed comparable to that of a simple `std::queue` in combination with a mutex.
+_Buffered_ channels contain an internal queue to store messages for later use.
+That means a message can be pushed into the channel at an arbitrary point before it will be returned by a pop again later.
+They are the more "general use" choice of the two and provide speed comparable to that of a simple `std::queue` in combination with a mutex.
 
 [source,c++]
 ----
@@ -43,7 +56,10 @@ auto chan = buffered_channel<int>();
 auto chan = buffered_channel<int>(10);
 ----
 
-_Unbuffered_ channels do not store any `T` elements within themselves. Rather, a push or pop operation in one thread blocks until its counterpart is executed at the same time by another thread. Unbuffered channels are more difficult to use and slower than buffered channels in general. See link:motivation.adoc[docs/motivation.adoc] for information on what advantages an unbuffered channel can offer, besides the obvious smaller memory footprint.
+_Unbuffered_ channels do not store any `T` elements within themselves.
+Rather, a push or pop operation in one thread blocks until its counterpart is executed at the same time by another thread.
+Unbuffered channels are more difficult to use and slower than buffered channels in general.
+See link:motivation.adoc[docs/motivation.adoc] for information on what advantages an unbuffered channel can offer, besides the obvious smaller memory footprint.
 
 [source,c++]
 ----
@@ -51,23 +67,27 @@ _Unbuffered_ channels do not store any `T` elements within themselves. Rather, a
 auto chan = unbuffered_channel<int>();
 ----
 
-
 === Void channels
 
 A _void channel_ is a channel with message type `T = void`.
-They are used as "signals", similar to `std::future<void>`. Pushing into a void channel can be seen as emitting a signal and popping from it then consumes the signal.
+They are used as "signals", similar to `std::future<void>`.
+Pushing into a void channel can be seen as emitting a signal and popping from it then consumes the signal.
 
 Void channels can be buffered or unbuffered and support all the same operations that normal channels support, with a few differences.
-In general, any function that would return `std::optional<T>` returns `bool` instead. Any function that has a `T` parameter is missing that parameter instead.
+In general, any function that would return `std::optional<T>` returns `bool` instead.
+Any function that has a `T` parameter is missing that parameter instead.
 The same is true for callables passed to copper functions, such as `select` or `push_func`.
 
 === States of a channel
 
-A channel can have two states, *open* and *closed*, always starting in the former when constructed. A channel that is open can be freely used to pass messages. A closed channel does not allow any further push operations but if it is buffered, the remaining messages can still be popped.
+A channel can have two states, *open* and *closed*, always starting in the former when constructed.
+A channel that is open can be freely used to pass messages.
+A closed channel does not allow any further push operations but if it is buffered, the remaining messages can still be popped.
 
 === Sending and receiving messages
 
-Most operations on channels belong into one of the "push family" or the "pop family", which are used to send and receive messages respectively. In its most basic form, these two families are represented by the functions `push` and `pop`:
+Most operations on channels belong into one of the "push family" or the "pop family", which are used to send and receive messages respectively.
+In its most basic form, these two families are represented by the functions `push` and `pop`:
 
 [source,c++]
 ----
@@ -78,13 +98,18 @@ const bool push_successful = chan.push(1);
 const std::optional<int> pop_result = chan.pop();
 ----
 
-`push` accepts a value that can be converted to `T` and returns a `bool` that is `true` if the operation could be completed successfully. This is not the case if the channel is closed, in which case nothing can be pushed into it and `false` is returned.
+`push` accepts a value that can be converted to `T` and returns a `bool` that is `true` if the operation could be completed successfully.
+This is not the case if the channel is closed, in which case nothing can be pushed into it and `false` is returned.
 
-`pop` returns an `std::optional<T>` which contains the next message from the queue if it could be executed successfully. If the channel is closed and there are no messages in the buffer of the channel, `pop` will return `std::nullopt`.
+`pop` returns an `std::optional<T>` which contains the next message from the queue if it could be executed successfully.
+If the channel is closed and there are no messages in the buffer of the channel, `pop` will return `std::nullopt`.
 
-Both `push` and `pop` will _block_ the caller as long as needed if they cannot complete their operation immediately. This could be because the internal buffer is full / empty or the channel is simply unbuffered. Only when the operation can be completed or the channel is closed and the operation has to be canceled will the call unblock.
+Both `push` and `pop` will _block_ the caller as long as needed if they cannot complete their operation immediately.
+This could be because the internal buffer is full / empty or the channel is simply unbuffered.
+Only when the operation can be completed or the channel is closed and the operation has to be canceled will the call unblock.
 
-Copper ensures that blocked operations are treated in a FIFO order. For example, if two or more "push" operations are pending on a channel with a full buffer, as soon as a "pop" operation is run, the "push" that has been waiting the longest is guaranteed to be executed first.
+Copper ensures that blocked operations are treated in a FIFO order.
+For example, if two or more "push" operations are pending on a channel with a full buffer, as soon as a "pop" operation is run, the "push" that has been waiting the longest is guaranteed to be executed first.
 
 Both `push` and `pop` offer three variants for non-blocking access.
 
@@ -101,18 +126,25 @@ std::optional<T> try_pop_for(std::chrono::duration&);
 std::optional<T> try_pop_until(const std::chrono::time_point&);
 ----
 
-This pattern of the four variants of one operation can be found in several places in Copper. They always have the same behavior:
+This pattern of the four variants of one operation can be found in several places in Copper.
+They always have the same behavior:
 
 * `X()` blocks the caller until the operation either can be completed successfully or a state is reached in which it is impossible to be completed anymore.
-* `try_X()` does not block the caller at all. It only executes the operation if it can be done immediately.
-* `try_X_for(const std::chrono::duration&)` behaves like `X()` with the addition of a timeout. If the call could not execute the operation and has blocked the caller for at least the given duration, it is cancelled and returns to the caller.
-* `try_X_until(const std::chrono::time_point&)` behaves like `try_X_for`, only that instead of a duration, a fixed point in time is passed. The operation is cancelled as soon as the system clock passes that point.
+* `try_X()` does not block the caller at all.
+It only executes the operation if it can be done immediately.
+* `try_X_for(const std::chrono::duration&)` behaves like `X()` with the addition of a timeout.
+If the call could not execute the operation and has blocked the caller for at least the given duration, it is cancelled and returns to the caller.
+* `try_X_until(const std::chrono::time_point&)` behaves like `try_X_for`, only that instead of a duration, a fixed point in time is passed.
+The operation is cancelled as soon as the system clock passes that point.
 
-Like `push`, the other three "push" functions return `true` only if the operation could be completed successfully. In their case, that means `false` can be returned even if the channel is still open, when a timeout occurs. The same is true for the "pop" functions and `std::nullopt`.
+Like `push`, the other three "push" functions return `true` only if the operation could be completed successfully.
+In their case, that means `false` can be returned even if the channel is still open, when a timeout occurs.
+The same is true for the "pop" functions and `std::nullopt`.
 
 === Sending and receiving with functions
 
-`push` and `pop` provide easy access to the basic functionality of a channel while sacrificing some efficiency and power. Full access is gained by using `push_func` / `pop_func` and their variants.
+`push` and `pop` provide easy access to the basic functionality of a channel while sacrificing some efficiency and power.
+Full access is gained by using `push_func` / `pop_func` and their variants.
 
 [source,c++]
 ----
@@ -127,9 +159,11 @@ channel_op_status try_pop_func_for(const std::function<void(T&&)>&, const std::c
 channel_op_status try_pop_func_until(const std::function<void(T&&)>&, const std::chrono::time_point&);
 ----
 
-Instead of expecting a `T` object, `push_func` uses a callable argument which is used as a generator for the message to be pushed. If the push operation can be completed successfully, and only then, is the passed function called and its return value is sent over the channel.
+Instead of expecting a `T` object, `push_func` uses a callable argument which is used as a generator for the message to be pushed.
+If the push operation can be completed successfully, and only then, is the passed function called and its return value is sent over the channel.
 
-Instead of returning a `T` object, `pop_func` also uses a callable argument which handles the popped message. If the pop operation can be completed successfully, the argument is called with the received message.
+Instead of returning a `T` object, `pop_func` also uses a callable argument which handles the popped message.
+If the pop operation can be completed successfully, the argument is called with the received message.
 
 All functions return a `channel_op_status` value, which is a scoped enum.
 
@@ -142,8 +176,11 @@ enum class channel_op_status {
 };
 ----
 
-Instead of a binary value (success / no success), this represents a ternary result, where "no success" is split into `closed`, meaning the channel is closed and the operation cannot be executed on that channel anymore, or `unavailable`, meaning the operation could not be executed at the moment and caused a timeout.
+Instead of a binary value (success / no success), this represents a ternary result, where "no success" is split into `closed`, meaning the channel is closed, and the operation cannot be executed on that channel anymore, or `unavailable`, meaning the operation could not be executed at the moment and caused a timeout.
 
+IMPORTANT: The channel object is locked while the callable is executed.
+If computing the pushed message or handling the popped message is expensive, you might block other threads trying to access the channel.
+In that case, it can be better to pre-compute the value.
 
 === Templated sending and receiving
 
@@ -176,13 +213,13 @@ template<wait_type>
 channel_op_status push_func_wt(const std::function<void(T&&)>&, Args&&...);
 ----
 
-In general, you probably do not want to use these "_wt" functions for direct calls, as they are much less readable than the named operations. They can be useful however when another templated function calls one of these operations.
+In general, you probably do not want to use these "_wt" functions for direct calls, as they are much less readable than the named operations.
+They can be useful however when another templated function calls one of these operations.
 
 [source,c++]
 ----
 chan.template push_wt<wait_type::for_>(123, 200ms);
 ----
-
 
 === Other channel operations
 
@@ -199,7 +236,8 @@ channel_read_view<channel> read_view();
 channel_write_view<channel> write_view();
 ----
 
-The functions `begin`, `end`, `push_iterator`, `read_view`, and `write_view` provide easy access to iterators and views on this channel. See <<Views>> and <<Iterators>> for more information on that.
+The functions `begin`, `end`, `push_iterator`, `read_view`, and `write_view` provide easy access to iterators and views on this channel.
+See <<Views>> and <<Iterators>> for more information on that.
 
 [source,c++]
 ----
@@ -215,13 +253,15 @@ The `close` function does just that: it closes the channel, preventing any furth
 
 `is_write_closed` returns `true` if and only if the channel is closed, meaning that no more messages can be written to it. `is_write_closed` returns `true` if and only if the channel is closed and empty, meaning that no more messages can be read from it.
 
-`clear` empties the buffer of the channel and returns the number of messages that were cleared. This is probably the most situational of all functions in `channel`. It is recommended to not use `clear` on an open channel, as pending "push" operations are not cancelled and the behavior might be unexpected. It can be used after closing a buffered channel to instantly stop all consumers, instead of them processing the rest of the buffer.
-
-
+`clear` empties the buffer of the channel and returns the number of messages that were cleared.
+This is probably the most situational of all functions in `channel`.
+It is recommended to not use `clear` on an open channel, as pending "push" operations are not cancelled and the behavior might be unexpected.
+It can be used after closing a buffered channel to instantly stop all consumers, instead of them processing the rest of the buffer.
 
 == Select
 
-While channels by themselves can suffice to provide communication between threads, the "select" functions add to their potential. They allow you to combine the handling of multiple channels into a single thread, thus reducing the total number of threads and synchronisation objects and making your code more cohesive.
+While channels by themselves can suffice to provide communication between threads, the "select" functions add to their potential.
+They allow you to combine the handling of multiple channels into a single thread, thus reducing the total number of threads and synchronisation objects and making your code more cohesive.
 
 [source,c++]
 ----
@@ -231,7 +271,8 @@ channel_op_status try_select_for(Ops&&..., const std::chrono::duration&);
 channel_op_status try_select_until(Ops&&..., const std::chrono::time_point&);
 ----
 
-A "select" can be seen as the parallel execution of one or multiple "push_func" and/or "pop_func" operations. The `Ops` type parameter defines that group of operations, which are created by the shift operators `<<` and `>>` (inspired by Go's `\->` and `\<-`).
+A "select" can be seen as the parallel execution of one or multiple "push_func" and/or "pop_func" operations.
+The `Ops` type parameter defines that group of operations, which are created by the shift operators `<<` and `>>` (inspired by Go's `\->` and `\<-`).
 
 [source,c++]
 ----
@@ -283,25 +324,13 @@ A select statement returns
 * `channel_op_status::closed`, if the channels of all operations are closed and the channels of all push operations are empty.
 * `channel_op_status::unavailable` otherwise.
 
-A common pattern is to have a loop run a select statement over and over again, until all channels have been closed.
-This can easily be expressed by "loop_select" functions.
-
-[source,c++]
-----
-channel_op_status loop_select(Ops&&...);
-channel_op_status loop_try_select(Ops&&...);
-channel_op_status loop_try_select_for(Ops&&..., const std::chrono::duration&);
-channel_op_status loop_try_select_until(Ops&&..., const std::chrono::time_point&);
-----
-
-`loop_select` calls `select` with the given parameters as long as it returns `channel_op_status::success`.
-As soon as `select` returns either `channel_op_status::unavailable` or `channel_op_status::closed`, the loop stops and `loop_select` returns that value.
-The other three variants behave analogously.
-
+IMPORTANT: The channel object is locked while a callable is executed.
+If computing the pushed message or handling the popped message is expensive, you might block other threads trying to access the channel.
+In that case, it can be better to pre-compute the value.
 
 == Views
 
-Views are references to existing channels that allow only a subset of all operations. `channel_read_view` only allows  "pop" functions as well as `begin()` and `end()`.
+Views are references to existing channels that allow only a subset of all operations. `channel_read_view` only allows "pop" functions as well as `begin()` and `end()`.
 `channel_write_view` only allows "push" functions as well as `push_iterator()`, `close()`, and `clear()`.
 
 [source,c++]
@@ -320,12 +349,16 @@ Passing the user a `channel_write_view` instead of a `channel&` prevents any acc
 
 == Iterators
 
-Copper provides two type of iterator types: `channel_pop_iterator` and `channel_push_iterator`. They can be instantiated for every channel with non-void messages.
+Copper provides two type of iterator types: `channel_pop_iterator` and `channel_push_iterator`.
+They can be instantiated for every channel with non-void messages.
 
-`channel_pop_iterator` is a `std::input_iterator` that pops elements from the underlying channel when incremented. It uses `pop` to extract elements, meaning it will block until an element can be popped successfully. It is considered to have reached its end when the channel is closed and contains no buffered messages.
+`channel_pop_iterator` is a `std::input_iterator` that pops elements from the underlying channel when incremented.
+It uses `pop` to extract elements, meaning it will block until an element can be popped successfully.
+It is considered to have reached its end when the channel is closed and contains no buffered messages.
 
 A `channel_pop_iterator` can be constructed most easily by calling `begin()` and `end()` on a channel.
-Because of that, channels can not only be used in combination with `std::algorithm` but also classify as ranges in the context of `std::ranges`. It can also be used in a for-each loop.
+Because of that, channels can not only be used in combination with `std::algorithm` but also classify as ranges in the context of `std::ranges`.
+It can also be used in a for-each loop.
 
 [source,c++]
 ----
@@ -339,9 +372,11 @@ for (auto message : chan) {
 }
 ----
 
-`channel_push_iterator` works similarly to `std::back_insert_iterator`. The statement `*iter = val;` is equivalent to `chan.push(val);`.
+`channel_push_iterator` works similarly to `std::back_insert_iterator`.
+The statement `*iter = val;` is equivalent to `chan.push(val);`.
 
-It can be constructed most easily by calling `push_iterator()` on a channel. While having less use cases than the `channel_pop_iterator`, a `channel_push_iterator` also allows support for some more `std` algorithms.
+It can be constructed most easily by calling `push_iterator()` on a channel.
+While having less use cases than the `channel_pop_iterator`, a `channel_push_iterator` also allows support for some more `std` algorithms.
 
 [source,c++]
 ----
@@ -349,7 +384,6 @@ It can be constructed most easily by calling `push_iterator()` on a channel. Whi
 std::copy(v.begin(), v.end(), c.push_iterator());
 std::ranges::copy(v, c.push_iterator());
 ----
-
 
 == Configuration
 
@@ -366,10 +400,11 @@ chan.pop_func([&chan](int i) { chan.push(i); });
 
 This can be disabled by adding the preprocesser definition `COPPER_DISALLOW_MUTEX_RECURSION` to use the less secure but faster `std::mutex` instead.
 
-
 == Complete Declarations Reference
 
-A complete collection of all public types and functions. Declarations are not necessarily the actual implementation in code. They only represent their behavior and their usage, while striving to be more readable as a reference compared to the actual lengthy definitions.
+A complete collection of all public types and functions.
+Declarations are not necessarily the actual implementation in code.
+They only represent their behavior and their usage, while striving to be more readable as a reference compared to the actual lengthy definitions.
 
 .enums
 [source,c++]
@@ -378,7 +413,6 @@ enum class channel_op_status { success, closed, unavailable };
 
 enum class wait_type { forever, none, for_, until };
 ----
-
 
 .channels
 [source,c++]

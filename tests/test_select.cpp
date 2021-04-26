@@ -147,12 +147,9 @@ CHANNEL_TEST_CASE("push select on two full channel reacts to a later pop.", "[co
     fill_channel(chan1, 1);
     fill_channel(chan2, 1);
     const auto f = []() { return 1; };
-    auto fut =
-            std::async(
-                    [&chan1, &chan2, &f]() {
-                        REQUIRE_THREADSAFE(copper::try_select_for(1s, chan1 << f, chan2 << f) ==
-                                           copper::channel_op_status::success);
-                    });
+    auto fut = std::async([&chan1, &chan2, &f]() {
+        REQUIRE_THREADSAFE(copper::try_select_for(1s, chan1 << f, chan2 << f) == copper::channel_op_status::success);
+    });
     REQUIRE_THREADSAFE(fut.wait_for(100ms) == std::future_status::timeout);
     REQUIRE_THREADSAFE(chan1.try_pop().value() == 1);
     REQUIRE_THREADSAFE(fut.wait_for(50ms) == std::future_status::ready);
@@ -173,7 +170,8 @@ CHANNEL_TEST_CASE("select does not consider closed channels.", "[copper]") {
     auto chan2 = channel_t();
     chan2.close();
     REQUIRE_THREADSAFE(copper::try_select_for(
-            50ms, chan1 >> [](int) {}, chan2 << [] { return 0; }) == copper::channel_op_status::unavailable);
+                           50ms, chan1 >> [](int) {}, chan2 << [] { return 0; }) ==
+                       copper::channel_op_status::unavailable);
 }
 
 CHANNEL_TEST_CASE("selecting on the same channel twice at once works correctly.", "[copper]") {
@@ -193,11 +191,9 @@ CHANNEL_TEST_CASE("select on two unified_channels reacts to a later close.", "[c
     auto chan1 = channel_t();
     auto chan2 = channel_t();
     const auto f = [](int) {};
-    auto fut =
-            std::async([&chan1, &chan2, &f]() {
-                REQUIRE_THREADSAFE(
-                        copper::try_select_for(1s, chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
-            });
+    auto fut = std::async([&chan1, &chan2, &f]() {
+        REQUIRE_THREADSAFE(copper::try_select_for(1s, chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
+    });
     std::this_thread::yield();
     REQUIRE_THREADSAFE(fut.wait_for(100ms) == std::future_status::timeout);
     chan1.close();
@@ -214,11 +210,9 @@ CHANNEL_TEST_CASE("select on a closed channel and an open channel is cancelled w
     auto chan2 = channel_t();
     chan1.close();
     const auto f = [](int) {};
-    auto fut =
-            std::async([&chan1, &chan2, &f]() {
-                REQUIRE_THREADSAFE(
-                        copper::try_select_for(1s, chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
-            });
+    auto fut = std::async([&chan1, &chan2, &f]() {
+        REQUIRE_THREADSAFE(copper::try_select_for(1s, chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
+    });
     std::this_thread::yield();
     REQUIRE_THREADSAFE(fut.wait_for(100ms) == std::future_status::timeout);
     chan2.close();
@@ -238,36 +232,13 @@ CHANNEL_TEST_CASE("Multiple parallel pop selects can be used with the same chann
         REQUIRE_THREADSAFE(copper::select(chan1 >> f, chan2 >> f) == copper::channel_op_status::success);
     });
     auto fut3 = std::async(
-            [&chan1, f] { REQUIRE_THREADSAFE(copper::select(chan1 >> f) == copper::channel_op_status::success); });
+        [&chan1, f] { REQUIRE_THREADSAFE(copper::select(chan1 >> f) == copper::channel_op_status::success); });
     auto fut4 = std::async([&chan1] { REQUIRE_THREADSAFE(chan1.pop()); });
     std::this_thread::yield();
     REQUIRE_THREADSAFE(chan1.push(0));
     REQUIRE_THREADSAFE(chan1.push(0));
     REQUIRE_THREADSAFE(chan1.push(0));
     REQUIRE_THREADSAFE(chan1.push(0));
-}
-
-CHANNEL_TEST_CASE("loop_* select functions work correctly.", "[copper]") {
-    auto chan1 = channel_t();
-    fill_channel(chan1);
-    chan1.close();
-    auto chan2 = channel_t();
-    fill_channel(chan2);
-    chan2.close();
-    SECTION("loop_select") {
-        copper::loop_select(chan1 >> [](int) {}, chan2 >> [](int) {});
-    };
-    SECTION("loop_try_select") {
-        copper::loop_try_select(chan1 >> [](int) {}, chan2 >> [](int) {});
-    };
-    SECTION("loop_try_select_for") {
-        copper::loop_try_select_for(100ms, chan1 >> [](int) {}, chan2 >> [](int) {});
-    };
-    SECTION("loop_try_select_until") {
-        copper::loop_try_select_until(tnow() + 1s, chan1 >> [](int) {}, chan2 >> [](int) {});
-    }
-    REQUIRE_THREADSAFE(!chan1.pop());
-    REQUIRE_THREADSAFE(!chan2.pop());
 }
 
 CHANNEL_TEST_CASE("Multiple parallel push selects can be used with the same channel.", "[copper]") {
@@ -285,7 +256,7 @@ CHANNEL_TEST_CASE("Multiple parallel push selects can be used with the same chan
         REQUIRE_THREADSAFE(copper::select(chan1 << f, chan2 << f) == copper::channel_op_status::success);
     });
     auto fut3 = std::async(
-            [&chan1, f] { REQUIRE_THREADSAFE(copper::select(chan1 << f) == copper::channel_op_status::success); });
+        [&chan1, f] { REQUIRE_THREADSAFE(copper::select(chan1 << f) == copper::channel_op_status::success); });
     auto fut4 = std::async([&chan1] { REQUIRE_THREADSAFE(chan1.push(0)); });
     std::this_thread::yield();
     REQUIRE_THREADSAFE(chan1.pop());
@@ -295,8 +266,8 @@ CHANNEL_TEST_CASE("Multiple parallel push selects can be used with the same chan
 }
 
 CHANNEL_TEST_CASE(
-        "Multi-select, single-select, and normal pop on channel all have the same chance of being used when running in parallel.",
-        "[copper]") {
+    "Multi-select, single-select, and normal pop on channel all have the same chance of being used when running in parallel.",
+    "[copper]") {
     constexpr int N = 100;
 
     auto chan1 = channel_t(1);
@@ -320,7 +291,7 @@ CHANNEL_TEST_CASE(
         auto chan2 = channel_t();
         while (keep_running) {
             REQUIRE_THREADSAFE(copper::select(
-                    chan1 >> push1, chan2 >> [](int) { FAIL(); }) == copper::channel_op_status::success);
+                                   chan1 >> push1, chan2 >> [](int) { FAIL(); }) == copper::channel_op_status::success);
         }
     });
     auto fut2 = std::async([&chan1, &push2, &keep_running] {
@@ -338,7 +309,8 @@ CHANNEL_TEST_CASE(
         for (auto i = 0; i < N; ++i) {
             REQUIRE_THREADSAFE(chan1.push(1));
         }
-    }SECTION("Sleep between pushes.") {
+    }
+    SECTION("Sleep between pushes.") {
         for (auto i = 0; i < N; ++i) {
             std::this_thread::sleep_for(2ms);
             REQUIRE_THREADSAFE(chan1.push(1));
@@ -358,15 +330,15 @@ CHANNEL_TEST_CASE(
     keep_running = false;
     while (fut1.wait_for(1ms) == std::future_status::timeout || fut2.wait_for(1ms) == std::future_status::timeout ||
            fut3.wait_for(1ms) == std::future_status::timeout) {
-        (void) chan1.try_push(1);
+        (void)chan1.try_push(1);
     }
 
     REQUIRE_THREADSAFE(result.size() >= N);
 }
 
 CHANNEL_TEST_CASE(
-        "Multi-select, single-select, and normal push on channel all have the same chance of being used when running in parallel.",
-        "[copper]") {
+    "Multi-select, single-select, and normal push on channel all have the same chance of being used when running in parallel.",
+    "[copper]") {
     constexpr int N = 100;
 
     auto chan1 = channel_t(1);
@@ -377,7 +349,8 @@ CHANNEL_TEST_CASE(
         auto chan2 = channel_t();
         while (keep_running) {
             REQUIRE_THREADSAFE(copper::select(
-                    chan1 << [] { return 1; }, chan2 >> [](int) { FAIL(); }) == copper::channel_op_status::success);
+                                   chan1 << [] { return 1; }, chan2 >> [](int) { FAIL(); }) ==
+                               copper::channel_op_status::success);
         }
     });
     auto fut2 = std::async([&chan1, &keep_running] {
@@ -397,7 +370,8 @@ CHANNEL_TEST_CASE(
             std::this_thread::yield();
             result.push_back(chan1.pop().value());
         }
-    }SECTION("Sleep between pushes.") {
+    }
+    SECTION("Sleep between pushes.") {
         for (auto i = 0; i < N; ++i) {
             std::this_thread::sleep_for(2ms);
             result.push_back(chan1.pop().value());
@@ -416,6 +390,6 @@ CHANNEL_TEST_CASE(
     keep_running = false;
     while (fut1.wait_for(1ms) == std::future_status::timeout || fut2.wait_for(1ms) == std::future_status::timeout ||
            fut3.wait_for(1ms) == std::future_status::timeout) {
-        (void) chan1.try_pop();
+        (void)chan1.try_pop();
     }
 }

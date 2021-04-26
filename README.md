@@ -50,10 +50,10 @@ void producer_2() {
 
 void consumer() {
     // Until both channel_1 and channel_2 are closed, get the next message from either and print it.
-    copper::loop_select(
+    while (copper::select(
         channel_1 >> [](int x) { std::cout << "Message from producer 1: " << x << std::endl; },
         channel_2 >> [](int x) { std::cout << "Message from producer 2: " << x << std::endl; }
-    );
+    ));
 }
 
 int main() {
