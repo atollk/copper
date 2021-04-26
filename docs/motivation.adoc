@@ -3,12 +3,17 @@
 
 == Comparison
 
-While there are multiple open source libraries available that try to mimic the power of Go's channels in C or C++, to my knowledge as of this writing, there is no implementation which actually captures all the aspects. To be precise, all of them lack in at least one of the following points, all of which are checked by Copper.
+Compared to a naive "synchronized queue" implementation, Copper offers the following features, which are often partially or fully missing:
 
 * Support for entirely unbuffered channels.
 * Support for void channels.
 * Support for select statements.
 * No polling.
+
+Copper is designed as an easy drop-in library that can be used in any kind of application that has access to std. Below are linked some frameworks which offer similar functionality to Copper.
+
+* https://github.com/Stiffstream/sobjectizer[SObjectizer]
+* https://www.boost.org/doc/libs/1_76_0/libs/fiber/doc/html/index.html[Boost.Fiber]
 
 == Motivation for void channels and select
 
