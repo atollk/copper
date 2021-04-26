@@ -33,6 +33,7 @@ add_executable(copper_tests
         tests/test_channel_write_view.cpp
         tests/test_iterators.cpp
         tests/test_select.cpp
+        tests/test_vselect.cpp
         tests/test_advanced.cpp
         tests/test_void_basics.cpp
         )

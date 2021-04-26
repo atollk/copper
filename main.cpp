@@ -6,13 +6,29 @@
 
 using namespace std::chrono_literals;
 
+struct loggo {
+    loggo() { std::cout << "log()" << std::endl; }
+    loggo(const loggo&) { std::cout << "log(const log&)" << std::endl; }
+    loggo(loggo&&) noexcept { std::cout << "log(log&&)" << std::endl; }
+    ~loggo() { std::cout << "~log()" << std::endl; }
+    loggo& operator=(const loggo&) = delete;
+    loggo& operator=(loggo&&) { std::cout << "operator=(log&&)" << std::endl; }
+};
+
 int main() {
     using copper::_;
-    copper::buffered_channel<int> chan;
-    copper::buffered_channel<void> vchan;
-    int x = 0;
-    int y = 0;
+    copper::buffered_channel<loggo> chan;
+    loggo x;
+    std::cout << std::endl;
     (void)copper::select(
-        chan >> x, [] { std::cout << 1; }, chan << y, [] { std::cout << 2; }, vchan >> _, [] { std::cout << 3; },
-        vchan << _, [] { std::cout << 4; });
+        chan >> x,
+        [] { std::cout << 1 << std::endl; },
+        chan << x,
+        [] { std::cout << 2 << std::endl; });
+    std::cout << std::endl;
+    (void)copper::select(
+        chan >> x,
+        [] { std::cout << 1 << std::endl; },
+        chan << std::move(x),
+        [] { std::cout << 2 << std::endl; });
 }

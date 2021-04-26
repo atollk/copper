@@ -393,9 +393,3 @@ CHANNEL_TEST_CASE(
         (void)chan1.try_pop();
     }
 }
-
-CHANNEL_TEST_CASE("SASDASDASDy.", "[copper]") {
-    auto chan = channel_t();
-    int x;
-    copper::select(chan >> x, [] {});
-}

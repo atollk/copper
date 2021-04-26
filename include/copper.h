@@ -144,6 +144,11 @@ void for_each_in_tuple(const std::tuple<Ts...>& t, F&& f);
 
 template <size_t N>
 static void fill_with_random_indices(std::array<size_t, N>& indices);
+template <typename... Args>
+struct pairify_template {};
+
+template <typename... Ts, typename F>
+auto transform_tuple(const std::tuple<Ts...>& t, F&& f);
 
 }  // namespace _detail
 
@@ -1302,34 +1307,6 @@ class channel_push_iterator {
 
 namespace _detail {
 
-/** convert a tuple (A, B, C, D, ...) to a tuple of pairs ((A, B), (C, D), ...) */
-template <typename... Args>
-struct pairify_template {};
-
-template <>
-struct pairify_template<> {
-    std::tuple<> operator()() { return {}; }
-};
-
-template <typename A, typename B, typename... Args>
-struct pairify_template<A, B, Args...> {
-    auto operator()(A a, B b, Args&&... args) {
-        return std::tuple_cat(std::make_tuple(std::pair<A, B>(std::forward<A>(a), std::forward<B>(b))),
-                              pairify_template<Args...>()(std::forward<Args>(args)...));
-    }
-};
-
-/** apply a function to each element of a tuple and return the result */
-template <typename T, typename F, size_t... Is>
-auto transform_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) {
-    return std::make_tuple((f(Is, std::get<Is>(t)))...);
-}
-
-template <typename... Ts, typename F>
-auto transform_tuple(const std::tuple<Ts...>& t, F&& f) {
-    return transform_tuple_impl(t, std::forward<F>(f), std::make_integer_sequence<size_t, sizeof...(Ts)>());
-}
-
 struct voidval_t {};
 
 template <bool _is_pop, typename VarT, bool is_buffered, typename T, template <typename...> typename... Args>
@@ -1337,6 +1314,7 @@ struct value_select_token {
     static constexpr bool is_op_base = false;
     static constexpr bool is_pop = _is_pop;
     static constexpr bool is_void = false;
+    using var_t = VarT;
     channel<is_buffered, T, Args...>& chan;
     VarT outvar;
 };
@@ -1350,7 +1328,7 @@ struct value_select_token<_is_pop, void, is_buffered, void, Args...> {
 };
 
 template <wait_type wtype, typename... Ops, typename... Args>
-channel_op_status opselect(std::tuple<Ops...>& ops, Args&&... args) {
+channel_op_status opselect(std::tuple<Ops...>&& ops, Args&&... args) {
     auto manager = std::make_from_tuple<_detail::select_manager<std::remove_reference_t<Ops>...>>(ops);
     return manager.template select<wtype>(std::forward<Args>(args)...);
 }
@@ -1372,17 +1350,23 @@ channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
             }
         } else {
             if constexpr (!vst.is_void) {
-                return vst.chan << [var = std::ref(vst.outvar), &selected_index, index] {
-                    selected_index = index;
-                    return var.get();
-                };
+                if constexpr (std::is_rvalue_reference_v<typename std::remove_reference_t<decltype(vst)>::var_t>) {
+                    return vst.chan << [var = std::ref(vst.outvar), &selected_index, index ]() -> auto&& {
+                        selected_index = index;
+                        return std::move(var.get());
+                    };
+                } else {
+                    return vst.chan << [var = std::ref(vst.outvar), &selected_index, index ]() -> auto& {
+                        selected_index = index;
+                        return var.get();
+                    };
+                }
             } else {
                 return vst.chan << [&selected_index, index] { selected_index = index; };
             }
         }
     };
-    auto ops = transform_tuple(pairs, pair_to_op);
-    const auto result = opselect<wtype>(ops, std::forward<Args>(args)...);
+    const auto result = opselect<wtype>(transform_tuple(pairs, pair_to_op), std::forward<Args>(args)...);
     if (result == channel_op_status::success) {
         visit_at(pairs, selected_index, [](auto&& f) { f.second(); });
     }
@@ -1446,7 +1430,7 @@ template <bool is_buffered, template <typename...> typename... Args>
 
 /** User-level "select" function. */
 template <typename... Ops>
-[[nodiscard]] std::enable_if_t<(Ops::is_op_base & ...), channel_op_status> select(Ops&&... ops) {
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> select(Ops&&... ops) {
     return _detail::opselect<wait_type::forever>(std::forward_as_tuple(ops...));
 }
 
@@ -1474,31 +1458,33 @@ template <typename Clock, typename Duration, typename... Ops>
 
 /** User-level "select" function. */
 template <typename... Args>
-[[nodiscard]] channel_op_status select(Args&&... args) {
+[[nodiscard]] channel_op_status vselect(Args&&... args) {
     return _detail::template valueselect<wait_type::forever>(
         _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...));
 }
 
 /** User-level "select" function. */
 template <typename... Args>
-[[nodiscard]] channel_op_status try_select(Args&&... args) {
+[[nodiscard]] channel_op_status try_vselect(Args&&... args) {
     return _detail::template valueselect<wait_type::none>(
         _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...));
 }
 
 /** User-level "select" function. */
 template <typename Rep, typename Period, typename... Args>
-[[nodiscard]] channel_op_status try_select_for(const std::chrono::duration<Rep, Period>& rel_time, Args&&... args) {
+[[nodiscard]] channel_op_status try_vselect_for(const std::chrono::duration<Rep, Period>& rel_time, Args&&... args) {
     return _detail::template valueselect<wait_type::for_>(
-        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...), rel_time);
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...),
+        rel_time);
 }
 
 /** User-level "select" function. */
 template <typename Clock, typename Duration, typename... Args>
-[[nodiscard]] channel_op_status try_select_until(const std::chrono::time_point<Clock, Duration>& timeout_time,
+[[nodiscard]] channel_op_status try_vselect_until(const std::chrono::time_point<Clock, Duration>& timeout_time,
                                                  Args&&... args) {
     return _detail::template valueselect<wait_type::until>(
-        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...), timeout_time);
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...),
+        timeout_time);
 }
 
 namespace _detail {
@@ -1594,8 +1580,9 @@ struct select_manager {
                 return;
             }
             const auto already_locked_pair =
-                std::find_if(already_locked.begin(), already_locked.end(),
-                             [op](const auto& pair) { return pair.first == &op->channel_mutex(); });
+                std::find_if(already_locked.begin(), already_locked.end(), [op](const auto& pair) {
+                    return pair.first == &op->channel_mutex();
+                });
             if (already_locked_pair == already_locked.end()) {
                 locks[i] = std::unique_lock<channel_mutex_t>(op->channel_mutex());
                 already_locked.emplace_back(&op->channel_mutex(), i);
@@ -1657,6 +1644,31 @@ void for_each_in_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) 
 template <typename... Ts, typename F>
 void for_each_in_tuple(const std::tuple<Ts...>& t, F&& f) {
     for_each_in_tuple_impl(t, std::forward<F>(f), std::make_integer_sequence<size_t, sizeof...(Ts)>());
+}
+
+/** convert a tuple (A, B, C, D, ...) to a tuple of pairs ((A, B), (C, D), ...) */
+template <>
+struct pairify_template<> {
+    std::tuple<> operator()() { return {}; }
+};
+
+template <typename A, typename B, typename... Args>
+struct pairify_template<A, B, Args...> {
+    auto operator()(A a, B b, Args&&... args) {
+        return std::tuple_cat(std::make_tuple(std::pair<A, B>(std::forward<A>(a), std::forward<B>(b))),
+                              pairify_template<Args...>()(std::forward<Args>(args)...));
+    }
+};
+
+/** apply a function to each element of a tuple and return the result */
+template <typename T, typename F, size_t... Is>
+auto transform_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) {
+    return std::make_tuple((f(Is, std::get<Is>(t)))...);
+}
+
+template <typename... Ts, typename F>
+auto transform_tuple(const std::tuple<Ts...>& t, F&& f) {
+    return transform_tuple_impl(t, std::forward<F>(f), std::make_integer_sequence<size_t, sizeof...(Ts)>());
 }
 
 /** Based on xoshiro128++ by by David Blackman and Sebastiano Vigna (vigna@acm.org)
