@@ -1,6 +1,6 @@
 ---
 
-![logo](docs/copper_logo_small.png)
+![logo](docs/copper.svg)
 
 ---
 
