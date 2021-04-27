@@ -12,25 +12,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        name: [macos, linux-arm, linux-gcc, linux-clang, win-mingw, win-msvc]
         os: [macos-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, windows-latest]
         build_type: [Debug, Release]
         include:
-        - os: macos-latest
+        - name: macos
+          os: macos-latest
           compiler: clang++
 
-        - os: ubuntu-latest
+        - name:  linux-arm
+          os: ubuntu-latest
           compiler: arm-linux-gnueabihf-gcc-5
 
-        - os: ubuntu-latest
+        - name:  linux-gcc
+          os: ubuntu-latest
           compiler: g++
 
-        - os: ubuntu-latest
+        - name:  linux-clang
+          os: ubuntu-latest
           compiler: clang++
 
-        - os: windows-latest
+        - name:  win-mingw
+          os: windows-latest
           compiler: g++
 
-        - os: windows-latest
+        - name:  win-msvc
+          os: windows-latest
           compiler: msvc
 
     steps:
