@@ -1337,10 +1337,11 @@ template <wait_type wtype, typename... Pairs, typename... Args>
 channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
     auto selected_index = size_t(0);
     auto pair_to_op = [&selected_index](size_t index, auto& pair) {
+        using vst_t = typename std::remove_reference_t<decltype(pair.first)>;
         auto& vst = pair.first;
         auto& postfunc = pair.second;
-        if constexpr (vst.is_pop) {
-            if constexpr (!vst.is_void) {
+        if constexpr (vst_t::is_pop) {
+            if constexpr (!vst_t::is_void) {
                 return vst.chan >> [var = &vst.outvar, &selected_index, index](auto&& x) {
                     *var = std::forward<decltype(x)>(x);
                     selected_index = index;
@@ -1349,7 +1350,7 @@ channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
                 return vst.chan >> [&selected_index, index] { selected_index = index; };
             }
         } else {
-            if constexpr (!vst.is_void) {
+            if constexpr (!vst_t::is_void) {
                 if constexpr (std::is_rvalue_reference_v<typename std::remove_reference_t<decltype(vst)>::var_t>) {
                     return vst.chan << [ var = std::ref(vst.outvar), &selected_index, index ]() -> auto&& {
                         selected_index = index;

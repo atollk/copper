@@ -120,4 +120,4 @@ void consumer_thread() {
 ----
 
 Another advantage to unbuffered channels can be the way data is passed from one thread to another.
-Whereas buffered channels almost always use their internal buffer as an intermediate storage before a message can be consumed, communication over an unbuffered channel can happen with as little as a single move constructor. This gives unbuffered channels an edge when dealing with large messages that cannot be moved easily. More concrete data can be found in link:benchmark.adoc[docs/benchmark.adoc].
+Whereas buffered channels almost always use their internal buffer as an intermediate storage before a message can be consumed, communication over an unbuffered channel can happen with as little as a single move constructor. This gives unbuffered channels an edge when dealing with large messages that cannot be moved easily. More concrete data can be found in link:techdetails.adoc[docs/benchmark.adoc].
