@@ -1052,17 +1052,17 @@ class channel_read_view {
 
     template <typename F>
     [[nodiscard]] auto try_pop_func(F&& func) {
-        return this->_channel.get().try_pop(std::forward<F>(func));
+        return this->_channel.get().try_pop_func(std::forward<F>(func));
     }
 
     template <typename F, typename Rep, typename Period>
     [[nodiscard]] auto try_pop_func_for(F&& func, const std::chrono::duration<Rep, Period>& rel_time) {
-        return this->_channel.get().try_pop_for(std::forward<F>(func), rel_time);
+        return this->_channel.get().try_pop_func_for(std::forward<F>(func), rel_time);
     }
 
     template <typename F, typename Clock, typename Duration>
     [[nodiscard]] auto try_pop_func_until(F&& func, const std::chrono::time_point<Clock, Duration>& timeout_time) {
-        return this->_channel.get().try_pop_until(std::forward<F>(func), timeout_time);
+        return this->_channel.get().try_pop_func_until(std::forward<F>(func), timeout_time);
     }
 
     [[nodiscard]] channel_pop_iterator<ChannelT> begin() { return this->_channel.get().begin(); }
@@ -1380,7 +1380,16 @@ constexpr _detail::voidval_t voidval;
 constexpr _detail::voidval_t _;
 
 /** From a channel and a callback function, creates a popper object that can be used for `select`. */
-template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
+template <typename Op,
+          bool is_buffered,
+          typename T,
+#if __cpp_concepts < 201907L
+          typename std::enable_if_t<(!std::is_void_v<T> && std::is_convertible_v<Op, std::function<void(T&&)>>) ||
+                                        (std::is_void_v<T> && std::is_convertible_v<Op, std::function<void()>>),
+                                    int> = 0,
+#endif
+          template <typename...>
+          typename... Args>
 #if __cpp_concepts >= 201907L
 requires requires(Op f) {
     f(std::declval<typename channel<is_buffered, T, Args...>::value_type>());
@@ -1392,7 +1401,16 @@ requires requires(Op f) {
 }
 
 /** From a channel and a callback function, creates a pusher object that can be used for `select`. */
-template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
+template <typename Op,
+          bool is_buffered,
+          typename T,
+#if __cpp_concepts < 201907L
+          typename std::enable_if_t<(!std::is_void_v<T> && std::is_convertible_v<Op, std::function<T()>>) ||
+                                        (std::is_void_v<T> && std::is_convertible_v<Op, std::function<void()>>),
+                                    int> = 0,
+#endif
+          template <typename...>
+          typename... Args>
 #if __cpp_concepts >= 201907L
 requires requires(Op f) {
     { f() } -> std::convertible_to<typename channel<is_buffered, T, Args...>::value_type>;
@@ -1609,19 +1627,19 @@ template <size_t I>
 struct visit_impl {
     template <typename T, typename F>
     static void visit(T& tup, size_t idx, F&& fun) {
-        if (idx == I - 1)
+        if (idx == I - 1) {
             fun(std::get<I - 1>(tup));
-        else
+        } else {
+            assert(I > 0);
             visit_impl<I - 1>::visit(tup, idx, std::forward<F>(fun));
+        }
     }
 };
 
 template <>
 struct visit_impl<0> {
     template <typename T, typename F>
-    static void visit(T& tup, size_t idx, F&& fun) {
-        assert(false);
-    }
+    static void visit(T& tup, size_t idx, F&& fun) {}
 };
 
 /** Calls a function with the ith element of a tuple. Basically std::get at runtime. */

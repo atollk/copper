@@ -1,5 +1,7 @@
 #include "../tests/util.h"
 
+// TODO tests for try_select, try_select_for, try_select_until
+
 using namespace std::chrono_literals;
 
 CHANNEL_TEST_CASE("Single pop select on channels works correctly.", "[copper]") {
@@ -334,6 +336,9 @@ CHANNEL_TEST_CASE(
            fut3.wait_for(1ms) == std::future_status::timeout) {
         (void)chan1.try_push(1);
     }
+    fut1.wait();
+    fut2.wait();
+    fut3.wait();
 
     REQUIRE_THREADSAFE(result.size() >= N);
 }

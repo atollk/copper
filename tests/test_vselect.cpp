@@ -1,5 +1,7 @@
 #include "../tests/util.h"
 
+// TODO tests for try_vselect, try_vselect_for, try_vselect_until
+
 using namespace std::chrono_literals;
 
 CHANNEL_TEST_CASE("Single pop vselect on channels works correctly.", "[copper]") {
@@ -79,10 +81,11 @@ CHANNEL_TEST_CASE("push vselect on two channels works correctly.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
     auto task = std::async([&chan1, &chan2]() {
+        const auto one = 1;  // to test pass-by-lvalue
         REQUIRE_THREADSAFE(copper::vselect(
-                               chan1 << 1,
+                               chan1 << one,
                                [] {},
-                               chan2 << 1,
+                               chan2 << one,
                                [] {}) == copper::channel_op_status::success);
         REQUIRE_THREADSAFE(copper::vselect(
                                chan1 << 2,

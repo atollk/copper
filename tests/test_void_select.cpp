@@ -1,7 +1,7 @@
 #include "../tests/util.h"
 
 using namespace std::chrono_literals;
-
+/*
 VOID_CHANNEL_TEST_CASE("Single pop select on channels works correctly.", "[copper]") {
     auto chan = channel_t();
     auto task = std::async([&chan]() {
@@ -278,3 +278,4 @@ VOID_CHANNEL_TEST_CASE("Multiple parallel push selects can be used with the same
     REQUIRE_THREADSAFE(chan1.pop());
     REQUIRE_THREADSAFE(chan1.pop());
 }
+ */

@@ -12,16 +12,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [macos, linux-arm, linux-gcc, linux-clang, win-mingw, win-msvc]
+        name: [macos, linux-gcc, linux-clang, win-mingw, win-msvc]
         build_type: [Debug, Release]
         include:
         - name: macos
           os: macos-latest
           compiler: clang++
 
-        - name:  linux-arm
-          os: ubuntu-latest
-          compiler: arm-linux-gnueabihf-gcc-5
+        #- name:  linux-arm
+        #  os: ubuntu-latest
+        #  compiler: arm-linux-gnueabihf-gcc-5
 
         - name:  linux-gcc
           os: ubuntu-latest

@@ -1,7 +1,7 @@
 #include "../tests/util.h"
 
 using namespace std::chrono_literals;
-
+/*
 VOID_CHANNEL_TEST_CASE("Single pop vselect on channels works correctly.", "[copper]") {
     auto chan = channel_t();
     auto task = std::async([&chan]() {
@@ -133,3 +133,4 @@ VOID_CHANNEL_TEST_CASE("vselect allows the callables to run in parallel.", "[cop
     task1.wait();
     task2.wait();
 }
+*/
