@@ -16,9 +16,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-add_library(copper INTERFACE include/copper.h)
+add_library(copper INTERFACE)
 target_include_directories(copper INTERFACE include)
-set_property(TARGET copper PROPERTY CXX_STANDARD 20)
 
 if (COPPER_DISALLOW_MUTEX_RECURSION)
     target_compile_definitions(copper INTERFACE COPPER_DISALLOW_MUTEX_RECURSION)
