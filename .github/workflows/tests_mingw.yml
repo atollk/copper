@@ -9,6 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         build_type: [Debug, Release]
+        compiler: [gcc, clang]
 
     steps:
     - uses: actions/checkout@v2
@@ -18,8 +19,7 @@ jobs:
         install: >-
           base-devel
           cmake
-          clang
-          gcc
+          ${{matrix.compiler}}
           git
 
     - name: Create Build Environment
