@@ -10,8 +10,11 @@ Copper and its unit tests were successfully compiled and run on the following sy
 
 * Mac OS X 10.15.7, AppleClang 12.0.0.12000032
 * Ubuntu 20.04.2, GCC 9.3.0
+* Ubuntu 20.04.2, Clang 10.0.0
 * Arch Linux 5.11.16, GCC 10.2.0
 * Arch Linux 5.11.16, Clang 11.1.0
+* Microsoft Windows Server 2019 10.0.17763, MSVC 19.28.29914.0
+* Microsoft Windows Server 2019 10.0.17763, MSVC 19.28.29914.0
 
 
 == Type Requirements
