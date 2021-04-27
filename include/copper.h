@@ -1374,77 +1374,66 @@ channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
     return result;
 }
 
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+struct channel_rshift_op {
+    auto operator()(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_v<Rhs&&, T&&>) {
+            return _detail::make_popper(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<Rhs&&, T&>));
+            return _detail::value_select_token<true, T&, is_buffered, T, Args...>{channel, rhs};
+        }
+    }
+};
+
+template <typename Rhs, bool is_buffered, template <typename...> typename... Args>
+struct channel_rshift_op<Rhs, is_buffered, void, Args...> {
+    auto operator()(channel<is_buffered, void, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_v<Rhs&&>) {
+            return _detail::make_popper(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<Rhs, _detail::voidval_t>));
+            return _detail::value_select_token<true, void, is_buffered, void, Args...>{channel};
+        }
+    }
+};
+
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+struct channel_lshift_op {
+    auto operator()(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_r_v<T, Rhs&&>) {
+            return _detail::make_pusher(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, T>));
+            return _detail::value_select_token<false, Rhs&&, is_buffered, T, Args...>{channel, std::forward<Rhs>(rhs)};
+        }
+    }
+};
+
+template <typename Rhs, bool is_buffered, template <typename...> typename... Args>
+struct channel_lshift_op<Rhs, is_buffered, void, Args...> {
+    auto operator()(channel<is_buffered, void, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_v<Rhs&&>) {
+            return _detail::make_pusher(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, _detail::voidval_t>));
+            return _detail::value_select_token<false, void, is_buffered, void, Args...>{channel};
+        }
+    }
+};
+
 }  // namespace _detail
 
 constexpr _detail::voidval_t voidval;
 constexpr _detail::voidval_t _;
 
-/** From a channel and a callback function, creates a popper object that can be used for `select`. */
-template <typename Op,
-          bool is_buffered,
-          typename T,
-#if __cpp_concepts < 201907L
-          typename std::enable_if_t<(!std::is_void_v<T> && std::is_convertible_v<Op, std::function<void(T&&)>>) ||
-                                        (std::is_void_v<T> && std::is_convertible_v<Op, std::function<void()>>),
-                                    int> = 0,
-#endif
-          template <typename...>
-          typename... Args>
-#if __cpp_concepts >= 201907L
-requires requires(Op f) {
-    f(std::declval<typename channel<is_buffered, T, Args...>::value_type>());
-} ||(std::is_void_v<T>&& requires(Op f) { f(); })
-#endif
-    [[nodiscard]] auto
-    operator>>(channel<is_buffered, T, Args...>& channel, Op&& func) {
-    return _detail::make_popper(channel, std::forward<Op>(func));
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+[[nodiscard]] auto operator>>(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) {
+    return _detail::channel_rshift_op<Rhs, is_buffered, T, Args...>()(channel, std::forward<Rhs>(rhs));
 }
-
-/** From a channel and a callback function, creates a pusher object that can be used for `select`. */
-template <typename Op,
-          bool is_buffered,
-          typename T,
-#if __cpp_concepts < 201907L
-          typename std::enable_if_t<(!std::is_void_v<T> && std::is_convertible_v<Op, std::function<T()>>) ||
-                                        (std::is_void_v<T> && std::is_convertible_v<Op, std::function<void()>>),
-                                    int> = 0,
-#endif
-          template <typename...>
-          typename... Args>
-#if __cpp_concepts >= 201907L
-requires requires(Op f) {
-    { f() } -> std::convertible_to<typename channel<is_buffered, T, Args...>::value_type>;
-} ||(std::is_void_v<T>&& requires(Op f) { f(); })
-#endif
-    [[nodiscard]] auto
-    operator<<(channel<is_buffered, T, Args...>& channel, Op&& func) {
-    return _detail::make_pusher(channel, std::forward<Op>(func));
-}
-
-template <bool is_buffered, typename T, template <typename...> typename... Args>
-[[nodiscard]] auto operator>>(channel<is_buffered, T, Args...>& channel, T& var) {
-    return _detail::value_select_token<true, T&, is_buffered, T, Args...>{channel, var};
-}
-
-template <bool is_buffered, template <typename...> typename... Args>
-[[nodiscard]] auto operator>>(channel<is_buffered, void, Args...>& channel, _detail::voidval_t var) {
-    return _detail::value_select_token<true, void, is_buffered, void, Args...>{channel};
-}
-
-template <bool is_buffered, typename T, template <typename...> typename... Args>
-[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, const T& var) {
-    return _detail::value_select_token<false, const T&, is_buffered, T, Args...>{channel, var};
-}
-
-template <bool is_buffered, typename T, template <typename...> typename... Args>
-[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, std::add_rvalue_reference_t<T> var) {
-    return _detail::value_select_token<false, std::add_rvalue_reference_t<T>, is_buffered, T, Args...>{channel,
-                                                                                                       std::move(var)};
-}
-
-template <bool is_buffered, template <typename...> typename... Args>
-[[nodiscard]] auto operator<<(channel<is_buffered, void, Args...>& channel, _detail::voidval_t var) {
-    return _detail::value_select_token<false, void, is_buffered, void, Args...>{channel};
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) {
+    return _detail::channel_lshift_op<Rhs, is_buffered, T, Args...>()(channel, std::forward<Rhs>(rhs));
 }
 
 /** User-level "select" function. */
