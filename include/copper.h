@@ -1759,8 +1759,8 @@ struct fill_with_random_indices_impl {
         thread_local auto engine = thread_local_randomizer::create();
         struct urbg {
             using result_type = decltype(engine(N));
-            constexpr result_type min() { return 0; }
-            constexpr result_type max() { return N - 1; }
+            static constexpr result_type min() { return 0; }
+            static constexpr result_type max() { return N - 1; }
             result_type operator()() { return engine(N); }
         };
         std::iota(indices.begin(), indices.end(), 0);
