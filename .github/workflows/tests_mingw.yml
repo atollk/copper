@@ -13,6 +13,12 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          base-devel
+          cmake
+          mingw-w64
 
     - name: Create Build Environment
       # Some projects don't allow in-source building, so create a separate build directory
