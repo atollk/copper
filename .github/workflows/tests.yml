@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: [macos, linux-gcc, linux-clang, win-mingw, win-msvc]
+        name: [macos, linux-gcc, linux-clang, win-msvc]
         build_type: [Debug, Release]
         include:
         - name: macos
