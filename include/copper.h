@@ -1708,7 +1708,7 @@ class thread_local_randomizer {
         return {rd(), rd(), rd(), rd()};
     }
 
-    static result_type _rotl(result_type x, int k) { return (x << k) | (x >> (32 - k)); }
+    static inline result_type asdf(result_type x, int k) { return (x << k) | (x >> (32 - k)); }
 
     static void _jump_seed(seed_type& seed) {
         static const result_type JUMP[] = {0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b};
@@ -1735,7 +1735,7 @@ class thread_local_randomizer {
     }
 
     static result_type _next_seed(seed_type& seed) {
-        const auto result = _rotl(seed[0] + seed[3], 7) + seed[0];
+        const auto result = asdf(seed[0] + seed[3], 7) + seed[0];
 
         const result_type t = seed[1] << 9;
 
@@ -1746,7 +1746,7 @@ class thread_local_randomizer {
 
         seed[2] ^= t;
 
-        seed[3] = _rotl(seed[3], 11);
+        seed[3] = asdf(seed[3], 11);
 
         return result;
     }
