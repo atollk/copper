@@ -30,6 +30,7 @@ SOFTWARE.
 
 #include <array>
 #include <cassert>
+#include <cstdint>
 #include <chrono>
 #include <condition_variable>
 #include <functional>
