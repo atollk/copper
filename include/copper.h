@@ -30,9 +30,9 @@ SOFTWARE.
 
 #include <array>
 #include <cassert>
-#include <cstdint>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <numeric>
@@ -1684,7 +1684,8 @@ auto transform_tuple(const std::tuple<Ts...>& t, F&& f) {
  * Fast 32-bit PRN generator that can be constructed multiple times, yielding different seeds every time. */
 class thread_local_randomizer {
   public:
-    using seed_t = std::array<std::uint32_t, 4>;
+    using result_type = std::uint32_t;
+    using seed_type = std::array<result_type, 4>;
 
     /** Initializes a new `thread_local_randomizer` instance with a new seed. */
     static thread_local_randomizer create() {
@@ -1697,23 +1698,25 @@ class thread_local_randomizer {
     }
 
     /** Generates a new random number. */
-    std::uint32_t operator()(std::uint32_t end) { return _next_seed(this->_seed) % end; }
+    result_type operator()(result_type end) { return _next_seed(this->_seed) % end; }
 
   private:
-    explicit thread_local_randomizer(const seed_t& seed) : _seed(seed) {}
+    explicit thread_local_randomizer(const seed_type& seed) : _seed(seed) {}
 
-    static seed_t _initialize_global_seed() {
+    static seed_type _initialize_global_seed() {
         auto rd = std::random_device();
         return {rd(), rd(), rd(), rd()};
     }
 
-    static void _jump_seed(seed_t& seed) {
-        static const std::uint32_t JUMP[] = {0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b};
+    static result_type _rotl(result_type x, int k) { return (x << k) | (x >> (32 - k)); }
 
-        std::uint32_t s0 = 0;
-        std::uint32_t s1 = 0;
-        std::uint32_t s2 = 0;
-        std::uint32_t s3 = 0;
+    static void _jump_seed(seed_type& seed) {
+        static const result_type JUMP[] = {0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b};
+
+        result_type s0 = 0;
+        result_type s1 = 0;
+        result_type s2 = 0;
+        result_type s3 = 0;
         for (const auto jump : JUMP)
             for (int b = 0; b < 32; b++) {
                 if (jump & UINT32_C(1) << b) {
@@ -1731,10 +1734,10 @@ class thread_local_randomizer {
         seed[3] = s3;
     }
 
-    static std::uint32_t _next_seed(seed_t& seed) {
+    static result_type _next_seed(seed_type& seed) {
         const auto result = _rotl(seed[0] + seed[3], 7) + seed[0];
 
-        const std::uint32_t t = seed[1] << 9;
+        const result_type t = seed[1] << 9;
 
         seed[2] ^= seed[0];
         seed[3] ^= seed[1];
@@ -1748,9 +1751,7 @@ class thread_local_randomizer {
         return result;
     }
 
-    static inline std::uint32_t _rotl(const std::uint32_t x, int k) { return (x << k) | (x >> (32 - k)); }
-
-    seed_t _seed;
+    seed_type _seed;
 };
 
 /** Helper implementation for `fill_with_random_indices`. */
