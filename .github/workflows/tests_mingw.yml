@@ -9,6 +9,7 @@ jobs:
       fail-fast: false
       matrix:
         build_type: [Debug, Release]
+        platform: [x86_64]
         compiler_pkg: [gcc, clang]
         include:
         - compiler_pkg: gcc
@@ -24,8 +25,8 @@ jobs:
         install: >-
           base-devel
           cmake
-          ${{matrix.compiler_pkg}}
           git
+          mingw-w64-${{matrix.platform}}-${{matrix.compiler_pkg}}
 
     - name: Create Build Environment
       run: cmake -E make_directory ${{github.workspace}}/build
@@ -33,7 +34,7 @@ jobs:
     - name: Configure CMake
       shell:  msys2 {0}
       working-directory: ${{github.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=/c/MinGW/bin/${{matrix.cpp_compiler}}.exe
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}}
 
     - name: Build
       working-directory: ${{github.workspace}}/build
