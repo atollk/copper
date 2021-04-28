@@ -1684,7 +1684,7 @@ auto transform_tuple(const std::tuple<Ts...>& t, F&& f) {
  * Fast 32-bit PRN generator that can be constructed multiple times, yielding different seeds every time. */
 class thread_local_randomizer {
   public:
-    using result_type = std::uint32_t;
+    using result_type = unsigned int;//std::uint32_t;
     using seed_type = std::array<result_type, 4>;
 
     /** Initializes a new `thread_local_randomizer` instance with a new seed. */
