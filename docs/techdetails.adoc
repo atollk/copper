@@ -14,8 +14,10 @@ Copper and its unit tests were successfully compiled and run on the following sy
 * Arch Linux 5.11.16, GCC 10.2.0
 * Arch Linux 5.11.16, Clang 11.1.0
 * Microsoft Windows Server 2019 10.0.17763, MSVC 19.28.29914.0
-* Microsoft Windows Server 2019 10.0.17763, msys2 GCC 10.2.0
-* Microsoft Windows Server 2019 10.0.17763, msys2 Clang 11.0.0
+* Microsoft Windows Server 2019 10.0.17763, msys2 mingw64-GCC 10.2.0  [*]
+* Microsoft Windows Server 2019 10.0.17763, msys2 mingw64-Clang 11.0.0  [*]
+
+[*]: Mingw builds can be unstable. In Github's containers, both GCC and Clang failed at the linker stage but only for Debug builds. There are also machines on which the same config built and ran successfully, so it's best to just try it out. Assistance on the https://github.com/atollk/copper/issues/4[respective issue] is appreciated.
 
 
 == Type Requirements

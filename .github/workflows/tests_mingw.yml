@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Release]
+        build_type: [Release]  # Debug disabled due to https://github.com/atollk/copper/issues/4
         platform: [x86_64]
         compiler_pkg: [gcc, clang]
         include:
