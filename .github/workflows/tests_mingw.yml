@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build_type: [Debug, Release]
+        build_type: [Release]
         platform: [x86_64]
         compiler_pkg: [gcc, clang]
         include:
