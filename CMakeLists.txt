@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.14)
 
 project(copper CXX)
 
@@ -12,7 +12,8 @@ option(COPPER_ENABLE_TESTS "enable unit testing for Copper" ON)
 option(COPPER_DISALLOW_MUTEX_RECURSION "replace std::recursive_mutex by std::mutex in Copper" OFF)
 
 # copper library target
-add_library(copper INTERFACE include/copper.h)
+add_library(copper INTERFACE)
+target_sources(copper INTERFACE include/copper.h)
 target_include_directories(copper INTERFACE include)
 target_compile_features(copper INTERFACE cxx_std_17)
 if (COPPER_DISALLOW_MUTEX_RECURSION)
