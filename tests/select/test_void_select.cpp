@@ -251,15 +251,15 @@ VOID_CHANNEL_TEST_CASE("try_select_for fails with the correct status.", "[copper
     });
     const auto f = [] {};
     auto start = tnow();
-    REQUIRE_THREADSAFE(copper::try_select_for(200ms, chan1 >> f, chan2 >> f) == copper::channel_op_status::success);
-    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    REQUIRE_THREADSAFE(copper::try_select_for(2s, chan1 >> f, chan2 >> f) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(tnow() - start < 1s);
     start = tnow();
     REQUIRE_THREADSAFE(copper::try_select_for(200ms, chan1 >> f, chan2 >> f) == copper::channel_op_status::unavailable);
     REQUIRE_THREADSAFE(tnow() - start >= 200ms);
     start = tnow();
     chan2.close();
-    REQUIRE_THREADSAFE(copper::try_select_for(200ms, chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
-    REQUIRE_THREADSAFE(tnow() - start < 150ms);
+    REQUIRE_THREADSAFE(copper::try_select_for(2s, chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
+    REQUIRE_THREADSAFE(tnow() - start < 1s);
 }
 
 VOID_CHANNEL_TEST_CASE("try_select_until fails with the correct status.", "[copper]") {
@@ -272,18 +272,18 @@ VOID_CHANNEL_TEST_CASE("try_select_until fails with the correct status.", "[copp
     });
     const auto f = [] {};
     auto start = tnow();
-    REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 200ms, chan1 >> f, chan2 >> f) ==
+    REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 2s, chan1 >> f, chan2 >> f) ==
                        copper::channel_op_status::success);
-    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    REQUIRE_THREADSAFE(tnow() - start < 1s);
     start = tnow();
     REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 200ms, chan1 >> f, chan2 >> f) ==
                        copper::channel_op_status::unavailable);
     REQUIRE_THREADSAFE(tnow() - start >= 200ms);
     start = tnow();
     chan2.close();
-    REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 200ms, chan1 >> f, chan2 >> f) ==
+    REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 2s, chan1 >> f, chan2 >> f) ==
                        copper::channel_op_status::closed);
-    REQUIRE_THREADSAFE(tnow() - start < 150ms);
+    REQUIRE_THREADSAFE(tnow() - start < 1s);
 }
 
 VOID_CHANNEL_TEST_CASE("Multiple parallel pop selects can be used with the same channel.", "[copper]") {
