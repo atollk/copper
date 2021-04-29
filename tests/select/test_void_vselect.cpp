@@ -57,7 +57,7 @@ VOID_CHANNEL_TEST_CASE("pop vselect on one filled channel and one empty channel 
 VOID_CHANNEL_TEST_CASE("pop vselect on two pre-filled channels works correctly.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
-    auto result = 0;
+    auto result = std::atomic<int>(0);
     auto task = std::async([&chan1, &chan2, &result]() {
         REQUIRE_THREADSAFE(chan1.push());
         while (result == 0)

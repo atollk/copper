@@ -164,6 +164,25 @@ CHANNEL_TEST_CASE("vselect allows the callables to run in parallel.", "[copper]"
     task2.wait();
 }
 
+CHANNEL_TEST_CASE("vselecting on the same channel twice at once works correctly.", "[copper]") {
+    auto chan = channel_t(1);
+    auto result = 0;
+    auto task = std::async([&chan, &result]() {
+        REQUIRE_THREADSAFE(copper::vselect(
+                               chan << 1,
+                               [] {},
+                               chan >> result,
+                               [] {}) == copper::channel_op_status::success);
+    });
+    REQUIRE_THREADSAFE(copper::vselect(
+                           chan << 1,
+                           [] {},
+                           chan >> result,
+                           [] {}) == copper::channel_op_status::success);
+    task.wait();
+    REQUIRE_THREADSAFE(result == 1);
+}
+
 CHANNEL_TEST_CASE("try_vselect fails with the correct status.", "[copper]") {
     auto chan1 = channel_t();
     auto chan2 = channel_t();
