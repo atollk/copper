@@ -8,3 +8,5 @@ TabWidth: 4
 UseTab: Never
 IndentWidth: 4
 BreakStringLiterals: false
+BinPackArguments: false
+AllowAllArgumentsOnNextLine: false

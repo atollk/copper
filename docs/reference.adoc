@@ -328,6 +328,43 @@ IMPORTANT: The channel object is locked while a callable is executed.
 If computing the pushed message or handling the popped message is expensive, you might block other threads trying to access the channel.
 In that case, it can be better to pre-compute the value.
 
+Due to the locking behavior described above, there is an alternative "vselect" family which can prove to be faster when a lot of time is spent within the "select" callbacks.
+
+A "vselect" operation runs the push and pop on values rather than functions, similar to `channel::push` and `channel::pop` compared to their related "*_func" functions.
+To be able to be used similar to a `switch-case` statement, a "vselect" also accepts callback functions.
+The difference to "select" is that the channel can be unlocked while these are executed.
+
+[source,c++]
+----
+vselect(
+    chan1 << 1,  // Push "1" into chan1, if possible.
+    [] {},
+
+    chan2 << std::move(x),  // Push the value of "x" into chan2, if possible.
+    [&x] { x = compute_next_value(); },  // If chan2 was pushed into, "x" is re-computed.
+
+    chan3 >> y,  // Pop the next message of chan3 into "y".
+    [] {}
+);
+----
+
+For void channels, there is a special placeholder value to replace the variables and values.
+The placeholder can be accessed under the name `copper::_` or `copper::voidval`.
+
+[source,c++]
+----
+using copper::_;
+
+vselect(
+    chan1 << _,  // Send a message over the void channel if possible.
+    [] {},
+
+    // If "chan2" contained a message, the application exists.
+    chan2 >> _,
+    [] { exit(1); },
+);
+----
+
 == Views
 
 Views are references to existing channels that allow only a subset of all operations. `channel_read_view` only allows "pop" functions as well as `begin()` and `end()`.
@@ -707,8 +744,17 @@ struct channel<is_buffered, void, BufferQueue, OpQueue> {
 [source,c++]
 ----
 [[nodiscard]] auto operator>>(channel<is_buffered, T, ...>&, const std::function<void(T&&)>);
-
 [[nodiscard]] auto operator<<(channel<is_buffered, T, ...>&, const std::function<T()>);
+
+[[nodiscard]] auto operator>>(channel<is_buffered, void, ...>&, const std::function<void()>);
+[[nodiscard]] auto operator<<(channel<is_buffered, void, ...>&, const std::function<void()>);
+
+[[nodiscard]] auto operator>>(channel<is_buffered, T, ...>&, T&);
+[[nodiscard]] auto operator<<(channel<is_buffered, T, ...>&, T);
+
+// copper::_ or copper::voidval for an element of voidval_t.
+[[nodiscard]] auto operator>>(channel<is_buffered, void, ...>&, voidval_t);
+[[nodiscard]] auto operator<<(channel<is_buffered, void, ...>&, voidval_t);
 
 template<typename... Ops>
 [[nodiscard]] channel_op_status select(
@@ -731,26 +777,26 @@ try_select_until(
     const std::chrono::time_point<Clock, Duration>& timeout_time, Ops&& ... ops
 );
 
-template<typename... Ops>
-channel_op_status loop_select(
-    Ops&& ... ops
+
+template<typename... Args>
+[[nodiscard]] channel_op_status vselect(
+    Args&& ... args
 );
 
-template<typename... Ops>
-channel_op_status loop_try_select(
-    Ops&& ... ops
+template<typename... Args>
+[[nodiscard]] channel_op_status try_vselect(
+    Args&& ... args
 );
 
-template<typename Rep, typename Period, typename... Ops>
-channel_op_status loop_try_select_for(
-    const std::chrono::duration<Rep, Period>& rel_time,
-    Ops&& ... ops
+template<typename Rep, typename Period, typename... Args>
+[[nodiscard]] channel_op_status try_vselect_for(
+    const std::chrono::duration<Rep, Period>& rel_time, Args&& ... args
 );
 
-template<typename Clock, typename Duration, typename... Ops>
-channel_op_status loop_try_select_until(
-    const std::chrono::time_point<Clock, Duration>& timeout_time,
-    Ops&& ... ops
+template<typename Clock, typename Duration, typename... Args>
+[[nodiscard]] channel_op_status
+try_vselect_until(
+    const std::chrono::time_point<Clock, Duration>& timeout_time, Args&& ... args
 );
 
 ----

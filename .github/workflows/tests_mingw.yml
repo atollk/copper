@@ -1,0 +1,47 @@
+name: Build & Test (Mingw)
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [Release]  # Debug disabled due to https://github.com/atollk/copper/issues/4
+        platform: [x86_64]
+        compiler_pkg: [gcc, clang]
+        include:
+        - compiler_pkg: gcc
+          cpp_compiler: g++
+        - compiler_pkg: clang
+          cpp_compiler: clang++
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          base-devel
+          cmake
+          git
+          mingw-w64-${{matrix.platform}}-${{matrix.compiler_pkg}}
+
+    - name: Create Build Environment
+      run: cmake -E make_directory ${{github.workspace}}/build
+
+    - name: Configure CMake
+      shell:  msys2 {0}
+      working-directory: ${{github.workspace}}/build
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}}
+
+    - name: Build
+      working-directory: ${{github.workspace}}/build
+      shell:  msys2 {0}
+      run: cmake --build . --config ${{matrix.build_type}}
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      shell:  msys2 {0}
+      run: ctest -C ${{matrix.build_type}} --output-on-failure --timeout 240

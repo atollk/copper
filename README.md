@@ -1,6 +1,6 @@
 ---
 
-![logo](docs/copper_logo_small.png)
+![logo](docs/copper.svg)
 
 ---
 
@@ -74,7 +74,7 @@ See [docs/reference.adoc](docs/reference.adoc) for a detailed reference of the p
 
 ### Efficiency & Benchmarks
 
-See [docs/benchmark.adoc](docs/benchmark.adoc) for technical information about efficiency
+See [docs/techdetails.adoc](docs/techdetails.adoc) for technical information about efficiency
 and some benchmarks.
 
 ---

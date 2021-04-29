@@ -32,6 +32,7 @@ SOFTWARE.
 #include <cassert>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <functional>
 #include <mutex>
 #include <numeric>
@@ -134,16 +135,21 @@ struct dummy_lock_t final {
 constexpr auto dummy_lock = dummy_lock_t();
 
 template <typename F, typename... Ts>
-void visit_at(const std::tuple<Ts...>& tup, size_t idx, F fun);
+void visit_at(const std::tuple<Ts...>& tup, size_t idx, F&& fun);
 
 template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...>& tup, size_t idx, F fun);
+void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun);
 
 template <typename... Ts, typename F>
-void for_each_in_tuple(const std::tuple<Ts...>& t, F f);
+void for_each_in_tuple(const std::tuple<Ts...>& t, F&& f);
 
 template <size_t N>
 static void fill_with_random_indices(std::array<size_t, N>& indices);
+template <typename... Args>
+struct pairify_template {};
+
+template <typename... Ts, typename F>
+auto transform_tuple(const std::tuple<Ts...>& t, F&& f);
 
 }  // namespace _detail
 
@@ -807,6 +813,8 @@ template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, popper_base_nonvoid<T>> {
     using channel_t = channel<is_buffered, T, Args...>;
 
+    static constexpr bool is_op_base = true;
+
     explicit popper_base(channel_t& channel) : _channel(&channel) {}
 
     /** Notifies the respective channel that this operation is now waiting on an update. */
@@ -906,6 +914,8 @@ struct popper<F, is_buffered, void, Args...> final : public popper_base<is_buffe
 template <bool is_buffered, typename T, template <typename...> typename... Args>
 struct pusher_base {
     using channel_t = channel<is_buffered, T, Args...>;
+
+    static constexpr bool is_op_base = true;
 
     explicit pusher_base(channel_t& channel) : _channel(&channel) {}
 
@@ -1043,17 +1053,17 @@ class channel_read_view {
 
     template <typename F>
     [[nodiscard]] auto try_pop_func(F&& func) {
-        return this->_channel.get().try_pop(std::forward<F>(func));
+        return this->_channel.get().try_pop_func(std::forward<F>(func));
     }
 
     template <typename F, typename Rep, typename Period>
     [[nodiscard]] auto try_pop_func_for(F&& func, const std::chrono::duration<Rep, Period>& rel_time) {
-        return this->_channel.get().try_pop_for(std::forward<F>(func), rel_time);
+        return this->_channel.get().try_pop_func_for(std::forward<F>(func), rel_time);
     }
 
     template <typename F, typename Clock, typename Duration>
     [[nodiscard]] auto try_pop_func_until(F&& func, const std::chrono::time_point<Clock, Duration>& timeout_time) {
-        return this->_channel.get().try_pop_until(std::forward<F>(func), timeout_time);
+        return this->_channel.get().try_pop_func_until(std::forward<F>(func), timeout_time);
     }
 
     [[nodiscard]] channel_pop_iterator<ChannelT> begin() { return this->_channel.get().begin(); }
@@ -1296,55 +1306,194 @@ class channel_push_iterator {
     };
 };
 
-/** From a channel and a callback function, creates a popper object that can be used for `select`. */
-template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
-#if __cpp_concepts >= 201907L
-requires requires(Op f) {
-    f(std::declval<typename channel<is_buffered, T, Args...>::value_type>());
-}
-#endif
-[[nodiscard]] auto operator>>(channel<is_buffered, T, Args...>& channel, Op&& func) {
-    return _detail::make_popper(channel, std::forward<Op>(func));
+namespace _detail {
+
+struct voidval_t {};
+
+template <bool _is_pop, typename VarT, bool is_buffered, typename T, template <typename...> typename... Args>
+struct value_select_token {
+    static constexpr bool is_op_base = false;
+    static constexpr bool is_pop = _is_pop;
+    static constexpr bool is_void = false;
+    using var_t = VarT;
+    channel<is_buffered, T, Args...>& chan;
+    VarT outvar;
+};
+
+template <bool _is_pop, bool is_buffered, template <typename...> typename... Args>
+struct value_select_token<_is_pop, void, is_buffered, void, Args...> {
+    static constexpr bool is_op_base = false;
+    static constexpr bool is_pop = _is_pop;
+    static constexpr bool is_void = true;
+    channel<is_buffered, void, Args...>& chan;
+};
+
+template <wait_type wtype, typename... Ops, typename... Args>
+channel_op_status opselect(std::tuple<Ops...>&& ops, Args&&... args) {
+    auto manager = std::make_from_tuple<_detail::select_manager<std::remove_reference_t<Ops>...>>(ops);
+    return manager.template select<wtype>(std::forward<Args>(args)...);
 }
 
-/** From a channel and a callback function, creates a pusher object that can be used for `select`. */
-template <typename Op, bool is_buffered, typename T, template <typename...> typename... Args>
-#if __cpp_concepts >= 201907L
-requires requires(Op f) {
-    { f() } -> std::convertible_to<typename channel<is_buffered, T, Args...>::value_type>;
+template <wait_type wtype, typename... Pairs, typename... Args>
+channel_op_status valueselect(std::tuple<Pairs...>&& pairs, Args&&... args) {
+    auto selected_index = size_t(0);
+    auto pair_to_op = [&selected_index](size_t index, auto& pair) {
+        using vst_t = typename std::remove_reference_t<decltype(pair.first)>;
+        auto& vst = pair.first;
+        auto& postfunc = pair.second;
+        if constexpr (vst_t::is_pop) {
+            if constexpr (!vst_t::is_void) {
+                return vst.chan >> [var = &vst.outvar, &selected_index, index](auto&& x) {
+                    *var = std::forward<decltype(x)>(x);
+                    selected_index = index;
+                };
+            } else {
+                return vst.chan >> [&selected_index, index] { selected_index = index; };
+            }
+        } else {
+            if constexpr (!vst_t::is_void) {
+                if constexpr (std::is_rvalue_reference_v<typename std::remove_reference_t<decltype(vst)>::var_t>) {
+                    return vst.chan << [ var = std::ref(vst.outvar), &selected_index, index ]() -> auto&& {
+                        selected_index = index;
+                        return std::move(var.get());
+                    };
+                } else {
+                    return vst.chan << [ var = std::ref(vst.outvar), &selected_index, index ]() -> auto& {
+                        selected_index = index;
+                        return var.get();
+                    };
+                }
+            } else {
+                return vst.chan << [&selected_index, index] { selected_index = index; };
+            }
+        }
+    };
+    const auto result = opselect<wtype>(transform_tuple(pairs, pair_to_op), std::forward<Args>(args)...);
+    if (result == channel_op_status::success) {
+        visit_at(pairs, selected_index, [](auto&& f) { f.second(); });
+    }
+    return result;
 }
-#endif
-[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, Op&& func) {
-    return _detail::make_pusher(channel, std::forward<Op>(func));
+
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+struct channel_rshift_op {
+    auto operator()(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_v<Rhs&&, T&&>) {
+            return _detail::make_popper(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<Rhs&&, T&>));
+            return _detail::value_select_token<true, T&, is_buffered, T, Args...>{channel, rhs};
+        }
+    }
+};
+
+template <typename Rhs, bool is_buffered, template <typename...> typename... Args>
+struct channel_rshift_op<Rhs, is_buffered, void, Args...> {
+    auto operator()(channel<is_buffered, void, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_v<Rhs&&>) {
+            return _detail::make_popper(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, _detail::voidval_t>));
+            return _detail::value_select_token<true, void, is_buffered, void, Args...>{channel};
+        }
+    }
+};
+
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+struct channel_lshift_op {
+    auto operator()(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_r_v<T, Rhs&&>) {
+            return _detail::make_pusher(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, T>));
+            return _detail::value_select_token<false, Rhs&&, is_buffered, T, Args...>{channel, std::forward<Rhs>(rhs)};
+        }
+    }
+};
+
+template <typename Rhs, bool is_buffered, template <typename...> typename... Args>
+struct channel_lshift_op<Rhs, is_buffered, void, Args...> {
+    auto operator()(channel<is_buffered, void, Args...>& channel, Rhs&& rhs) const {
+        if constexpr (std::is_invocable_v<Rhs&&>) {
+            return _detail::make_pusher(channel, std::forward<Rhs>(rhs));
+        } else {
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, _detail::voidval_t>));
+            return _detail::value_select_token<false, void, is_buffered, void, Args...>{channel};
+        }
+    }
+};
+
+}  // namespace _detail
+
+constexpr _detail::voidval_t voidval;
+constexpr _detail::voidval_t _;
+
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+[[nodiscard]] auto operator>>(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) {
+    return _detail::channel_rshift_op<Rhs, is_buffered, T, Args...>()(channel, std::forward<Rhs>(rhs));
+}
+template <typename Rhs, bool is_buffered, typename T, template <typename...> typename... Args>
+[[nodiscard]] auto operator<<(channel<is_buffered, T, Args...>& channel, Rhs&& rhs) {
+    return _detail::channel_lshift_op<Rhs, is_buffered, T, Args...>()(channel, std::forward<Rhs>(rhs));
 }
 
 /** User-level "select" function. */
 template <typename... Ops>
-[[nodiscard]] channel_op_status select(Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::forever>();
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> select(Ops&&... ops) {
+    return _detail::opselect<wait_type::forever>(std::forward_as_tuple(ops...));
 }
 
 /** User-level "select" function. */
 template <typename... Ops>
-[[nodiscard]] channel_op_status try_select(Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::none>();
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> try_select(Ops&&... ops) {
+    return _detail::opselect<wait_type::none>(std::forward_as_tuple(ops...));
 }
 
 /** User-level "select" function. */
 template <typename Rep, typename Period, typename... Ops>
-[[nodiscard]] channel_op_status try_select_for(const std::chrono::duration<Rep, Period>& rel_time, Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::for_>(rel_time);
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> try_select_for(
+    const std::chrono::duration<Rep, Period>& rel_time,
+    Ops&&... ops) {
+    return _detail::opselect<wait_type::for_>(std::forward_as_tuple(ops...), rel_time);
 }
 
 /** User-level "select" function. */
 template <typename Clock, typename Duration, typename... Ops>
-[[nodiscard]] channel_op_status try_select_until(const std::chrono::time_point<Clock, Duration>& timeout_time,
-                                                 Ops&&... ops) {
-    auto manager = _detail::select_manager(ops...);
-    return manager.template select<wait_type::until>(timeout_time);
+[[nodiscard]] std::enable_if_t<(Ops::is_op_base && ...), channel_op_status> try_select_until(
+    const std::chrono::time_point<Clock, Duration>& timeout_time,
+    Ops&&... ops) {
+    return _detail::opselect<wait_type::until>(std::forward_as_tuple(ops...), timeout_time);
+}
+
+/** User-level "select" function. */
+template <typename... Args>
+[[nodiscard]] channel_op_status vselect(Args&&... args) {
+    return _detail::template valueselect<wait_type::forever>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...));
+}
+
+/** User-level "select" function. */
+template <typename... Args>
+[[nodiscard]] channel_op_status try_vselect(Args&&... args) {
+    return _detail::template valueselect<wait_type::none>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...));
+}
+
+/** User-level "select" function. */
+template <typename Rep, typename Period, typename... Args>
+[[nodiscard]] channel_op_status try_vselect_for(const std::chrono::duration<Rep, Period>& rel_time, Args&&... args) {
+    return _detail::template valueselect<wait_type::for_>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...),
+        rel_time);
+}
+
+/** User-level "select" function. */
+template <typename Clock, typename Duration, typename... Args>
+[[nodiscard]] channel_op_status try_vselect_until(const std::chrono::time_point<Clock, Duration>& timeout_time,
+                                                  Args&&... args) {
+    return _detail::template valueselect<wait_type::until>(
+        _detail::pairify_template<Args&&...>()(std::forward<Args>(args)...),
+        timeout_time);
 }
 
 namespace _detail {
@@ -1440,8 +1589,9 @@ struct select_manager {
                 return;
             }
             const auto already_locked_pair =
-                std::find_if(already_locked.begin(), already_locked.end(),
-                             [op](const auto& pair) { return pair.first == &op->channel_mutex(); });
+                std::find_if(already_locked.begin(), already_locked.end(), [op](const auto& pair) {
+                    return pair.first == &op->channel_mutex();
+                });
             if (already_locked_pair == already_locked.end()) {
                 locks[i] = std::unique_lock<channel_mutex_t>(op->channel_mutex());
                 already_locked.emplace_back(&op->channel_mutex(), i);
@@ -1466,50 +1616,76 @@ namespace _detail {
 template <size_t I>
 struct visit_impl {
     template <typename T, typename F>
-    static void visit(T& tup, size_t idx, F fun) {
-        if (idx == I - 1)
+    static void visit(T& tup, size_t idx, F&& fun) {
+        if (idx == I - 1) {
             fun(std::get<I - 1>(tup));
-        else
-            visit_impl<I - 1>::visit(tup, idx, fun);
+        } else {
+            assert(I > 0);
+            visit_impl<I - 1>::visit(tup, idx, std::forward<F>(fun));
+        }
     }
 };
 
 template <>
 struct visit_impl<0> {
     template <typename T, typename F>
-    static void visit(T& tup, size_t idx, F fun) {
-        assert(false);
-    }
+    static void visit(T& tup, size_t idx, F&& fun) {}
 };
 
 /** Calls a function with the ith element of a tuple. Basically std::get at runtime. */
 template <typename F, typename... Ts>
-void visit_at(const std::tuple<Ts...>& tup, size_t idx, F fun) {
-    visit_impl<sizeof...(Ts)>::visit(tup, idx, fun);
+void visit_at(const std::tuple<Ts...>& tup, size_t idx, F&& fun) {
+    visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
 }
 
 /** Calls a function with the ith element of a tuple. Basically std::get at runtime. */
 template <typename F, typename... Ts>
-void visit_at(std::tuple<Ts...>& tup, size_t idx, F fun) {
-    visit_impl<sizeof...(Ts)>::visit(tup, idx, fun);
+void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun) {
+    visit_impl<sizeof...(Ts)>::visit(tup, idx, std::forward<F>(fun));
 }
 
 template <typename T, typename F, size_t... Is>
-void for_each_in_tuple_impl(T&& t, F f, std::integer_sequence<size_t, Is...>) {
+void for_each_in_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) {
     auto l = {(f(Is, std::get<Is>(t)), 0)...};
 }
 
 /** Calls a functor object for each element in a tuple. */
 template <typename... Ts, typename F>
-void for_each_in_tuple(const std::tuple<Ts...>& t, F f) {
-    for_each_in_tuple_impl(t, f, std::make_integer_sequence<size_t, sizeof...(Ts)>());
+void for_each_in_tuple(const std::tuple<Ts...>& t, F&& f) {
+    for_each_in_tuple_impl(t, std::forward<F>(f), std::make_integer_sequence<size_t, sizeof...(Ts)>());
+}
+
+/** convert a tuple (A, B, C, D, ...) to a tuple of pairs ((A, B), (C, D), ...) */
+template <>
+struct pairify_template<> {
+    std::tuple<> operator()() { return {}; }
+};
+
+template <typename A, typename B, typename... Args>
+struct pairify_template<A, B, Args...> {
+    auto operator()(A a, B b, Args&&... args) {
+        return std::tuple_cat(std::make_tuple(std::pair<A, B>(std::forward<A>(a), std::forward<B>(b))),
+                              pairify_template<Args...>()(std::forward<Args>(args)...));
+    }
+};
+
+/** apply a function to each element of a tuple and return the result */
+template <typename T, typename F, size_t... Is>
+auto transform_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) {
+    return std::make_tuple((f(Is, std::get<Is>(t)))...);
+}
+
+template <typename... Ts, typename F>
+auto transform_tuple(const std::tuple<Ts...>& t, F&& f) {
+    return transform_tuple_impl(t, std::forward<F>(f), std::make_integer_sequence<size_t, sizeof...(Ts)>());
 }
 
 /** Based on xoshiro128++ by by David Blackman and Sebastiano Vigna (vigna@acm.org)
  * Fast 32-bit PRN generator that can be constructed multiple times, yielding different seeds every time. */
 class thread_local_randomizer {
   public:
-    using seed_t = std::array<std::uint32_t, 4>;
+    using result_type = unsigned int;//std::uint32_t;
+    using seed_type = std::array<result_type, 4>;
 
     /** Initializes a new `thread_local_randomizer` instance with a new seed. */
     static thread_local_randomizer create() {
@@ -1522,23 +1698,25 @@ class thread_local_randomizer {
     }
 
     /** Generates a new random number. */
-    std::uint32_t operator()(std::uint32_t end) { return _next_seed(this->_seed) % end; }
+    result_type operator()(result_type end) { return _next_seed(this->_seed) % end; }
 
   private:
-    explicit thread_local_randomizer(const seed_t& seed) : _seed(seed) {}
+    explicit thread_local_randomizer(const seed_type& seed) : _seed(seed) {}
 
-    static seed_t _initialize_global_seed() {
+    static seed_type _initialize_global_seed() {
         auto rd = std::random_device();
         return {rd(), rd(), rd(), rd()};
     }
 
-    static void _jump_seed(seed_t& seed) {
-        static const std::uint32_t JUMP[] = {0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b};
+    static inline result_type _xxrotl(result_type x, int k) { return (x << k) | (x >> (32 - k)); }
 
-        std::uint32_t s0 = 0;
-        std::uint32_t s1 = 0;
-        std::uint32_t s2 = 0;
-        std::uint32_t s3 = 0;
+    static void _jump_seed(seed_type& seed) {
+        static const result_type JUMP[] = {0x8764000b, 0xf542d2d3, 0x6fa035c3, 0x77f2db5b};
+
+        result_type s0 = 0;
+        result_type s1 = 0;
+        result_type s2 = 0;
+        result_type s3 = 0;
         for (const auto jump : JUMP)
             for (int b = 0; b < 32; b++) {
                 if (jump & UINT32_C(1) << b) {
@@ -1556,10 +1734,10 @@ class thread_local_randomizer {
         seed[3] = s3;
     }
 
-    static std::uint32_t _next_seed(seed_t& seed) {
-        const auto result = _rotl(seed[0] + seed[3], 7) + seed[0];
+    static result_type _next_seed(seed_type& seed) {
+        const auto result = _xxrotl(seed[0] + seed[3], 7) + seed[0];
 
-        const std::uint32_t t = seed[1] << 9;
+        const result_type t = seed[1] << 9;
 
         seed[2] ^= seed[0];
         seed[3] ^= seed[1];
@@ -1568,14 +1746,12 @@ class thread_local_randomizer {
 
         seed[2] ^= t;
 
-        seed[3] = _rotl(seed[3], 11);
+        seed[3] = _xxrotl(seed[3], 11);
 
         return result;
     }
 
-    static inline std::uint32_t _rotl(const std::uint32_t x, int k) { return (x << k) | (x >> (32 - k)); }
-
-    seed_t _seed;
+    seed_type _seed;
 };
 
 /** Helper implementation for `fill_with_random_indices`. */
@@ -1583,8 +1759,14 @@ template <size_t N>
 struct fill_with_random_indices_impl {
     void operator()(std::array<size_t, N>& indices) {
         thread_local auto engine = thread_local_randomizer::create();
+        struct urbg {
+            using result_type = decltype(engine(N));
+            static constexpr result_type min() { return 0; }
+            static constexpr result_type max() { return N - 1; }
+            result_type operator()() { return engine(N); }
+        };
         std::iota(indices.begin(), indices.end(), 0);
-        std::shuffle(indices.begin(), indices.end(), engine);
+        std::shuffle(indices.begin(), indices.end(), urbg{});
     }
 };
 

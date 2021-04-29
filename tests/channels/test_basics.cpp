@@ -1,4 +1,8 @@
-#include "../tests/util.h"
+/**
+ * Tests for the basic functions (pushes, pops, close, clear) of non-void channels.
+ */
+
+#include "../util.h"
 
 using namespace std::chrono_literals;
 
@@ -156,7 +160,22 @@ TEMPLATE_TEST_CASE("channel::clear notifies waiting pushes.", "[copper]", int, v
     REQUIRE_THREADSAFE(chan.clear() == 2);
 }
 
-#ifdef TOLLKO_USE_RECURSIVE_MUTEX
+TEST_CASE("buffered_channel buffers correctly.", "[copper]") {
+    auto chan = copper::buffered_channel<int>();
+    REQUIRE_THREADSAFE(chan.push(1));
+    REQUIRE_THREADSAFE(chan.push(2));
+    REQUIRE_THREADSAFE(chan.push(3));
+    REQUIRE_THREADSAFE(chan.push(-6));
+    REQUIRE_THREADSAFE(chan.push(4));
+    REQUIRE_THREADSAFE(chan.pop() == 1);
+    REQUIRE_THREADSAFE(chan.pop() == 2);
+    REQUIRE_THREADSAFE(chan.pop() == 3);
+    REQUIRE_THREADSAFE(chan.pop() == -6);
+    REQUIRE_THREADSAFE(chan.pop() == 4);
+    REQUIRE_THREADSAFE(!chan.try_pop());
+}
+
+#ifndef COPPER_DISALLOW_MUTEX_RECURSION
 CHANNEL_TEST_CASE("channel::pop_func and ::push_func are able to access the same channel.", "[copper]") {
     auto chan = channel_t();
     SECTION("pop_func") {
@@ -180,5 +199,19 @@ CHANNEL_TEST_CASE("channel::pop_func and ::push_func are able to access the same
         REQUIRE_THREADSAFE(status == copper::channel_op_status::success);
     }
 }
-
 #endif
+
+TEST_CASE("buffered_channel buffers multiple elements correctly.", "[copper]") {
+    auto chan = copper::buffered_channel<int>();
+    REQUIRE_THREADSAFE(chan.push(1));
+    REQUIRE_THREADSAFE(chan.push(2));
+    REQUIRE_THREADSAFE(chan.push(3));
+    REQUIRE_THREADSAFE(chan.push(-6));
+    REQUIRE_THREADSAFE(chan.push(4));
+    REQUIRE_THREADSAFE(chan.pop() == 1);
+    REQUIRE_THREADSAFE(chan.pop() == 2);
+    REQUIRE_THREADSAFE(chan.pop() == 3);
+    REQUIRE_THREADSAFE(chan.pop() == -6);
+    REQUIRE_THREADSAFE(chan.pop() == 4);
+    REQUIRE_THREADSAFE(!chan.try_pop());
+}

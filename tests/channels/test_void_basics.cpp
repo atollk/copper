@@ -1,4 +1,8 @@
-#include "../tests/util.h"
+/**
+ * Tests for the basic functions (pushes, pops, close, clear) of void channels.
+ */
+
+#include "../util.h"
 
 using namespace std::chrono_literals;
 
@@ -122,7 +126,7 @@ VOID_CHANNEL_TEST_CASE("channel::clear functions correctly.", "[copper]") {
     REQUIRE_THREADSAFE(chan.push());
 }
 
-#ifdef TOLLKO_USE_RECURSIVE_MUTEX
+#ifndef COPPER_DISALLOW_MUTEX_RECURSION
 VOID_CHANNEL_TEST_CASE("channel::pop_func and ::push_func are able to access the same channel.", "[copper]") {
     auto chan = channel_t();
     SECTION("pop_func") {

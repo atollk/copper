@@ -12,33 +12,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, windows-latest]
+        name: [macos, linux-gcc, linux-clang, win-msvc]
         build_type: [Debug, Release]
         include:
-        - os: macos-latest
-          TARGET: x86_64-apple-darwin
-          COMPILER: clang
-          LINKER: clang
+        - name: macos
+          os: macos-latest
+          compiler: clang++
 
-        - os: ubuntu-latest
-          TARGET: armv7-unknown-linux-musleabihf
-          COMPILER: arm-linux-gnueabihf-gcc-5
-          LINKER: gcc-5-arm-linux-gnueabihf
+        #- name:  linux-arm
+        #  os: ubuntu-latest
+        #  compiler: arm-linux-gnueabihf-gcc-5
 
-        - os: ubuntu-latest
-          TARGET: x86_64-unknown-linux-musl
-          COMPILER: gcc
-          LINKER: gcc
+        - name:  linux-gcc
+          os: ubuntu-latest
+          compiler: g++
 
-        - os: ubuntu-latest
-          TARGET: x86_64-unknown-linux-musl
-          COMPILER: clang
-          LINKER: clang
+        - name:  linux-clang
+          os: ubuntu-latest
+          compiler: clang++
 
-        - os: windows-latest
-          TARGET: x86_64-unknown-linux-musl
-          COMPILER: gcc
-          LINKER: gcc
+        - name:  win-msvc
+          os: windows-latest
+          compiler: msvc
 
     steps:
     - uses: actions/checkout@v2
@@ -56,7 +51,7 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.compiler}} -DCOPPER_ENABLE_FLAKY_TESTS=OFF
 
     - name: Build
       working-directory: ${{github.workspace}}/build

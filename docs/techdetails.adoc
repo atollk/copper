@@ -1,6 +1,25 @@
 = Benchmarks & Technical Data
 :toc:
 
+== Compatibility
+
+Copper requires to be used with a {cpp} compiler that supports at least the {cpp}17 standard.
+If supported, Copper also accesses some features of {cpp}20. These are tested by `\__cpp_concepts >= 201907L` and `__cpp_lib_erase_if >= 202002L`.
+
+Copper and its unit tests were successfully compiled and run on the following systems:
+
+* Mac OS X 10.15.7, AppleClang 12.0.0.12000032
+* Ubuntu 20.04.2, GCC 9.3.0
+* Ubuntu 20.04.2, Clang 10.0.0
+* Arch Linux 5.11.16, GCC 10.2.0
+* Arch Linux 5.11.16, Clang 11.1.0
+* Microsoft Windows Server 2019 10.0.17763, MSVC 19.28.29914.0
+* Microsoft Windows Server 2019 10.0.17763, msys2 mingw64-GCC 10.2.0  [*]
+* Microsoft Windows Server 2019 10.0.17763, msys2 mingw64-Clang 11.0.0  [*]
+
+[*]: Mingw builds can be unstable. In Github's containers, both GCC and Clang failed at the linker stage but only for Debug builds. There are also machines on which the same config built and ran successfully, so it's best to just try it out. Assistance on the https://github.com/atollk/copper/issues/4[respective issue] is appreciated.
+
+
 == Type Requirements
 
 A type non-void `T` needs to satisfy the following requirements to be sent via a `copper::channel`:
