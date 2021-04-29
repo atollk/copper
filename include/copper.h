@@ -1393,7 +1393,7 @@ struct channel_rshift_op<Rhs, is_buffered, void, Args...> {
         if constexpr (std::is_invocable_v<Rhs&&>) {
             return _detail::make_popper(channel, std::forward<Rhs>(rhs));
         } else {
-            COPPER_STATIC_ASSERT((std::is_same_v<Rhs, _detail::voidval_t>));
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, _detail::voidval_t>));
             return _detail::value_select_token<true, void, is_buffered, void, Args...>{channel};
         }
     }

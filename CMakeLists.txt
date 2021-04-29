@@ -32,17 +32,17 @@ FetchContent_MakeAvailable(Catch2)
 # Unit tests
 add_executable(copper_tests
         tests/main.cpp
-        tests/test_basics.cpp
-        tests/test_channel_read_view.cpp
-        tests/test_channel_write_view.cpp
-        tests/test_iterators.cpp
-        tests/test_select.cpp
-        tests/test_vselect.cpp
-        tests/test_advanced.cpp
-        tests/test_void_basics.cpp
-        tests/test_void_select.cpp
-        tests/test_void_vselect.cpp
-        )
+        tests/template_instantiations.cpp
+        tests/channels/test_basics.cpp
+        tests/channels/test_void_basics.cpp
+        tests/views/test_channel_read_view.cpp
+        tests/views/test_channel_write_view.cpp
+        tests/iterators/test_channel_pop_iterator.cpp
+        tests/iterators/test_channel_push_iterator.cpp
+        tests/select/test_select.cpp
+        tests/select/test_vselect.cpp
+        tests/select/test_void_select.cpp
+        tests/select/test_void_vselect.cpp)
 target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
 target_compile_features(copper_tests PRIVATE cxx_std_20)
 

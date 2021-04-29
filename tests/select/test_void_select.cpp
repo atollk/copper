@@ -1,4 +1,4 @@
-#include "../tests/util.h"
+#include "../util.h"
 
 using namespace std::chrono_literals;
 
@@ -18,7 +18,7 @@ VOID_CHANNEL_TEST_CASE("Single pop select on channels works correctly.", "[coppe
     REQUIRE_THREADSAFE(copper::select(chan >> f) == copper::channel_op_status::success);
     REQUIRE_THREADSAFE(result == 3);
 }
-/*
+
 VOID_CHANNEL_TEST_CASE("Single push select on channels works correctly.", "[copper]") {
     auto chan = channel_t();
     auto task = std::async([&chan]() {
@@ -228,6 +228,64 @@ VOID_CHANNEL_TEST_CASE("select on a closed channel and an open channel is cancel
     REQUIRE_THREADSAFE(fut.wait_for(50ms) == std::future_status::ready);
 }
 
+VOID_CHANNEL_TEST_CASE("try_select fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() { REQUIRE_THREADSAFE(chan2.push()); });
+    const auto f = [] {};
+    while (copper::try_select(chan1 >> f, chan2 >> f) != copper::channel_op_status::success)
+        ;
+    REQUIRE_THREADSAFE(copper::try_select(chan1 >> f, chan2 >> f) == copper::channel_op_status::unavailable);
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_select(chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
+}
+
+VOID_CHANNEL_TEST_CASE("try_select_for fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() {
+        std::this_thread::sleep_for(50ms);
+        REQUIRE_THREADSAFE(chan2.push());
+    });
+    const auto f = [] {};
+    auto start = tnow();
+    REQUIRE_THREADSAFE(copper::try_select_for(200ms, chan1 >> f, chan2 >> f) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    start = tnow();
+    REQUIRE_THREADSAFE(copper::try_select_for(200ms, chan1 >> f, chan2 >> f) == copper::channel_op_status::unavailable);
+    REQUIRE_THREADSAFE(tnow() - start >= 200ms);
+    start = tnow();
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_select_for(200ms, chan1 >> f, chan2 >> f) == copper::channel_op_status::closed);
+    REQUIRE_THREADSAFE(tnow() - start < 150ms);
+}
+
+VOID_CHANNEL_TEST_CASE("try_select_until fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() {
+        std::this_thread::sleep_for(50ms);
+        REQUIRE_THREADSAFE(chan2.push());
+    });
+    const auto f = [] {};
+    auto start = tnow();
+    REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 200ms, chan1 >> f, chan2 >> f) ==
+                       copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    start = tnow();
+    REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 200ms, chan1 >> f, chan2 >> f) ==
+                       copper::channel_op_status::unavailable);
+    REQUIRE_THREADSAFE(tnow() - start >= 200ms);
+    start = tnow();
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_select_until(tnow() + 200ms, chan1 >> f, chan2 >> f) ==
+                       copper::channel_op_status::closed);
+    REQUIRE_THREADSAFE(tnow() - start < 150ms);
+}
+
 VOID_CHANNEL_TEST_CASE("Multiple parallel pop selects can be used with the same channel.", "[copper]") {
     auto chan1 = channel_t();
     auto fut1 = std::async([&chan1] {
@@ -278,4 +336,3 @@ VOID_CHANNEL_TEST_CASE("Multiple parallel push selects can be used with the same
     REQUIRE_THREADSAFE(chan1.pop());
     REQUIRE_THREADSAFE(chan1.pop());
 }
- */

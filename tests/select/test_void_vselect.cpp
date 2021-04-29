@@ -1,7 +1,7 @@
-#include "../tests/util.h"
+#include "../util.h"
 
 using namespace std::chrono_literals;
-/*
+
 VOID_CHANNEL_TEST_CASE("Single pop vselect on channels works correctly.", "[copper]") {
     auto chan = channel_t();
     auto task = std::async([&chan]() {
@@ -133,4 +133,97 @@ VOID_CHANNEL_TEST_CASE("vselect allows the callables to run in parallel.", "[cop
     task1.wait();
     task2.wait();
 }
-*/
+
+VOID_CHANNEL_TEST_CASE("try_vselect fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() { REQUIRE_THREADSAFE(chan2.push()); });
+    while (copper::try_vselect(
+               chan1 >> copper::_,
+               [] {},
+               chan2 >> copper::_,
+               [] {}) != copper::channel_op_status::success)
+        ;
+    REQUIRE_THREADSAFE(copper::try_vselect(
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::unavailable);
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_vselect(
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::closed);
+}
+
+VOID_CHANNEL_TEST_CASE("try_vselect_for fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() {
+        std::this_thread::sleep_for(50ms);
+        REQUIRE_THREADSAFE(chan2.push());
+    });
+    auto start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_for(
+                           200ms,
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_for(
+                           200ms,
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::unavailable);
+    REQUIRE_THREADSAFE(tnow() - start >= 200ms);
+    start = tnow();
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_vselect_for(
+                           200ms,
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::closed);
+    REQUIRE_THREADSAFE(tnow() - start < 150ms);
+}
+
+VOID_CHANNEL_TEST_CASE("try_vselect_until fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() {
+        std::this_thread::sleep_for(50ms);
+        REQUIRE_THREADSAFE(chan2.push());
+    });
+    auto start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_until(
+                           tnow() + 200ms,
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_until(
+                           tnow() + 200ms,
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::unavailable);
+    REQUIRE_THREADSAFE(tnow() - start >= 200ms);
+    start = tnow();
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_vselect_until(
+                           tnow() + 200ms,
+                           chan1 >> copper::_,
+                           [] {},
+                           chan2 >> copper::_,
+                           [] {}) == copper::channel_op_status::closed);
+    REQUIRE_THREADSAFE(tnow() - start < 150ms);
+}

@@ -1,6 +1,4 @@
-#include "../tests/util.h"
-
-// TODO tests for try_vselect, try_vselect_for, try_vselect_until
+#include "../util.h"
 
 using namespace std::chrono_literals;
 
@@ -164,4 +162,101 @@ CHANNEL_TEST_CASE("vselect allows the callables to run in parallel.", "[copper]"
     REQUIRE_THREADSAFE(chan1.push(2));
     task1.wait();
     task2.wait();
+}
+
+CHANNEL_TEST_CASE("try_vselect fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() { REQUIRE_THREADSAFE(chan2.push(0)); });
+    auto x = 0;
+    while (copper::try_vselect(
+               chan1 >> x,
+               [] {},
+               chan2 >> x,
+               [] {}) != copper::channel_op_status::success)
+        ;
+    REQUIRE_THREADSAFE(copper::try_vselect(
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::unavailable);
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_vselect(
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::closed);
+}
+
+CHANNEL_TEST_CASE("try_vselect_for fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() {
+        std::this_thread::sleep_for(50ms);
+        REQUIRE_THREADSAFE(chan2.push(0));
+    });
+    auto x = 0;
+    auto start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_for(
+                           200ms,
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_for(
+                           200ms,
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::unavailable);
+    REQUIRE_THREADSAFE(tnow() - start >= 200ms);
+    start = tnow();
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_vselect_for(
+                           200ms,
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::closed);
+    REQUIRE_THREADSAFE(tnow() - start < 150ms);
+}
+
+CHANNEL_TEST_CASE("try_vselect_until fails with the correct status.", "[copper]") {
+    auto chan1 = channel_t();
+    auto chan2 = channel_t();
+    chan1.close();
+    auto fut = std::async([&chan2]() {
+        std::this_thread::sleep_for(50ms);
+        REQUIRE_THREADSAFE(chan2.push(0));
+    });
+    auto x = 0;
+    auto start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_until(
+                           tnow() + 200ms,
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::success);
+    REQUIRE_THREADSAFE(tnow() - start < 100ms);
+    start = tnow();
+    REQUIRE_THREADSAFE(copper::try_vselect_until(
+                           tnow() + 200ms,
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::unavailable);
+    REQUIRE_THREADSAFE(tnow() - start >= 200ms);
+    start = tnow();
+    chan2.close();
+    REQUIRE_THREADSAFE(copper::try_vselect_until(
+                           tnow() + 200ms,
+                           chan1 >> x,
+                           [] {},
+                           chan2 >> x,
+                           [] {}) == copper::channel_op_status::closed);
+    REQUIRE_THREADSAFE(tnow() - start < 150ms);
 }
