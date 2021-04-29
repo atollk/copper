@@ -45,7 +45,7 @@ add_executable(copper_tests
 target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
 target_compile_features(copper_tests PRIVATE cxx_std_20)
 #if (WIN32 AND (MINGW OR MSYS))
-    target_compile_options(copper_tests PRIVATE "-Wl,--default-image-base-low -Wl,-Bstatic")
+    target_link_options(copper_tests PRIVATE "--default-image-base-low -Bstatic")
 #endif()
 
 if (COPPER_ENABLE_TESTS)
