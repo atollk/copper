@@ -20,33 +20,34 @@ if (COPPER_DISALLOW_MUTEX_RECURSION)
     target_compile_definitions(copper INTERFACE COPPER_DISALLOW_MUTEX_RECURSION)
 endif ()
 
-# Catch2 testing framework
-include(FetchContent)
-FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v2.13.6
-)
-FetchContent_MakeAvailable(Catch2)
-
-# Unit tests
-add_executable(copper_tests
-        tests/main.cpp
-        tests/template_instantiations.cpp
-        tests/channels/test_basics.cpp
-        tests/channels/test_void_basics.cpp
-        tests/views/test_channel_read_view.cpp
-        tests/views/test_channel_write_view.cpp
-        tests/iterators/test_channel_pop_iterator.cpp
-        tests/iterators/test_channel_push_iterator.cpp
-        tests/select/test_select.cpp
-        tests/select/test_vselect.cpp
-        tests/select/test_void_select.cpp
-        tests/select/test_void_vselect.cpp)
-target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
-target_compile_features(copper_tests PRIVATE cxx_std_20)
 
 if (COPPER_ENABLE_TESTS)
+    # Catch2 testing framework
+    include(FetchContent)
+    FetchContent_Declare(
+            Catch2
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG v2.13.6
+    )
+    FetchContent_MakeAvailable(Catch2)
+
+    # Unit tests
+    add_executable(copper_tests
+            tests/main.cpp
+            tests/template_instantiations.cpp
+            tests/channels/test_basics.cpp
+            tests/channels/test_void_basics.cpp
+            tests/views/test_channel_read_view.cpp
+            tests/views/test_channel_write_view.cpp
+            tests/iterators/test_channel_pop_iterator.cpp
+            tests/iterators/test_channel_push_iterator.cpp
+            tests/select/test_select.cpp
+            tests/select/test_vselect.cpp
+            tests/select/test_void_select.cpp
+            tests/select/test_void_vselect.cpp)
+    target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
+    target_compile_features(copper_tests PRIVATE cxx_std_20)
+
     enable_testing()
     add_test(copper_tests copper_tests)
 endif()
