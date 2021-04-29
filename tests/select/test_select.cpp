@@ -382,9 +382,11 @@ CHANNEL_TEST_CASE(
         const auto count_3 = std::count(result.begin(), result.end(), 3);
         result_mutex.unlock();
 
+#ifndef COPPER_DISABLE_FLAKY_TESTS
         REQUIRE_THREADSAFE(count_1 > 0);
         REQUIRE_THREADSAFE(count_2 > 0);
         REQUIRE_THREADSAFE(count_3 > 0);
+#endif
     }
 
     keep_running = false;
@@ -396,7 +398,9 @@ CHANNEL_TEST_CASE(
     fut2.wait();
     fut3.wait();
 
+#ifndef COPPER_DISABLE_FLAKY_TESTS
     REQUIRE_THREADSAFE(result.size() >= N);
+#endif
 }
 
 CHANNEL_TEST_CASE(
@@ -444,12 +448,17 @@ CHANNEL_TEST_CASE(
         const auto count_2 = std::count(result.begin(), result.end(), 2);
         const auto count_3 = std::count(result.begin(), result.end(), 3);
 
+#ifndef COPPER_DISABLE_FLAKY_TESTS
         REQUIRE_THREADSAFE(count_1 > 0);
         REQUIRE_THREADSAFE(count_2 > 0);
         REQUIRE_THREADSAFE(count_3 > 0);
+#endif
     }
 
+#ifndef COPPER_DISABLE_FLAKY_TESTS
     REQUIRE_THREADSAFE(result.size() >= N);
+#endif
+
     keep_running = false;
     while (fut1.wait_for(1ms) == std::future_status::timeout || fut2.wait_for(1ms) == std::future_status::timeout ||
            fut3.wait_for(1ms) == std::future_status::timeout) {

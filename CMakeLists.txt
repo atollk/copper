@@ -9,6 +9,7 @@ find_package(Threads REQUIRED)
 
 # Options
 option(COPPER_ENABLE_TESTS "enable unit testing for Copper" ON)
+option(COPPER_ENABLE_FLAKY_TESTS "enable flaky (unreliable) unit testing for Copper" ON)
 option(COPPER_DISALLOW_MUTEX_RECURSION "replace std::recursive_mutex by std::mutex in Copper" OFF)
 
 # copper library target
@@ -47,6 +48,9 @@ if (COPPER_ENABLE_TESTS)
             tests/select/test_void_vselect.cpp)
     target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
     target_compile_features(copper_tests PRIVATE cxx_std_20)
+    if (NOT COPPER_ENABLE_FLAKY_TESTS)
+        target_compile_definitions(copper_tests PRIVATE "COPPER_DISABLE_FLAKY_TESTS")
+    endif()
 
     enable_testing()
     add_test(copper_tests copper_tests)
