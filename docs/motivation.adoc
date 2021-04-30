@@ -43,14 +43,14 @@ The broker can now process all incoming requests from other threads synchronousl
 ----
 auto last_broadcast = ...;  // current time
 while (!shutdown) {
-    const auto no_timeout = copper::try_select_until(
+    const auto op_status = copper::try_select_until(
         last_broadcast + 5s,
         register_commands >> /* handle register */,
         unregister_command >> /* handle unregister */,
         broadcast_command >> /* handle broadcast */,
         shutdown_command >> /* handle shutdown */,
     );
-    if (!no_timeout) {
+    if (op_status == copper::channel_op_status::unavailable) {
         // broadcast a ping
     }
 }
@@ -72,21 +72,21 @@ while (!shutdown) {
     }
 
     // If no shutdown was waiting, prioritize register and unregister over broadcast.
-    copper::loop_try_select(
+    (void) copper::loop_try_select(
         register_commands >> /* handle register */,
         unregister_command >> /* handle unregister */,
         shutdown_command >> /* handle shutdown */,
     );
 
     // Finally, do a select on all operations at once.
-    const auto no_timeout = copper::try_select_until(
+    const auto op_status = copper::try_select_until(
         last_broadcast + 5s,
         register_commands >> /* handle register */,
         unregister_command >> /* handle unregister */,
         broadcast_command >> /* handle broadcast */,
         shutdown_command >> /* handle shutdown */,
     );
-    if (!no_timeout) {
+    if (op_status == copper::channel_op_status::unavailable) {
         // broadcast a ping
     }
 }
