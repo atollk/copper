@@ -29,8 +29,6 @@ A type non-void `T` needs to satisfy the following requirements to be sent via a
 * move assignable
 * destructible
 
-If your compiler supports C++20 concepts, these properties are checked when instantiating the template.
-
 == Memory Space
 
 On a typical 64 bit system, types of Copper can be expected to have the following sizes in memory:
