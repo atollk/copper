@@ -1,5 +1,5 @@
 /**
-Copper v1.0
+Copper v1.1
 ---
 
 MIT License
