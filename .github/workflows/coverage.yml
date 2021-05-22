@@ -18,7 +18,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{github.workspace}}/build
-      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=g++ -DCOPPER_ENABLE_FLAKY_TESTS=OFF
+      run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=g++ -DCOPPER_ENABLE_FLAKY_TESTS=OFF -DCOPPER_COLLECT_TEST_COVERAGE=ON
 
     - name: Build
       working-directory: ${{github.workspace}}/build
