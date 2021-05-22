@@ -34,6 +34,10 @@ jobs:
       working-directory: ${{github.workspace}}/build
       shell: bash
       run: gcovr -r ../include/ -x coverage.xml .
-           cat coverage.xml
+
+    - name: Upload Coverage
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: cat coverage.xml
 
 
