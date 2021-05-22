@@ -33,6 +33,7 @@ jobs:
     - name: Compute Coverage
       working-directory: ${{github.workspace}}/build
       shell: bash
-      run: gcovr -r ../include/ .
+      run: gcovr -r ../include/ -x coverage.xml .
+           cat coverage.xml
 
 
