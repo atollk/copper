@@ -1,4 +1,4 @@
-name: Build & Test
+name: Test Coverage
 
 on: [push]
 
@@ -8,6 +8,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+      -
+    - name: Install dependencies
+      run: sudo apt install gcovr
 
     - name: Create Build Environment
       run: cmake -E make_directory ${{github.workspace}}/build
