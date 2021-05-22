@@ -51,6 +51,8 @@ if (COPPER_ENABLE_TESTS)
     if (NOT COPPER_ENABLE_FLAKY_TESTS)
         target_compile_definitions(copper_tests PRIVATE "COPPER_DISABLE_FLAKY_TESTS")
     endif()
+    target_compile_options(copper_tests PRIVATE "--coverage")
+    target_link_options(copper_tests PRIVATE "--coverage")
 
     enable_testing()
     add_test(copper_tests copper_tests)
