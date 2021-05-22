@@ -38,6 +38,6 @@ jobs:
     - name: Upload Coverage
       working-directory: ${{github.workspace}}/build
       shell: bash
-      run: cat coverage.xml
+      run: bash <(curl -s https://codecov.io/bash) -f coverage.xml
 
 
