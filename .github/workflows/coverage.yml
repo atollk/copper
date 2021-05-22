@@ -8,7 +8,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      -
+
     - name: Install dependencies
       run: sudo apt install gcovr
 
