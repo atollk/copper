@@ -10,7 +10,7 @@ jobs:
       matrix:
         build_type: [Release]  # Debug disabled due to https://github.com/atollk/copper/issues/4
         platform: [x86_64]
-        compiler_pkg: [gcc, clang]
+        compiler_pkg: [gcc] # , clang]  Clang disabled to due
         include:
         - compiler_pkg: gcc
           cpp_compiler: g++
