@@ -9,6 +9,7 @@ find_package(Threads REQUIRED)
 
 # Options
 option(COPPER_ENABLE_TESTS "enable unit testing for Copper" ON)
+option(COPPER_COLLECT_TEST_COVERAGE "collect coverage data when running tests (only supported with G++)" OFF)
 option(COPPER_ENABLE_FLAKY_TESTS "enable flaky (unreliable) unit testing for Copper" ON)
 option(COPPER_DISALLOW_MUTEX_RECURSION "replace std::recursive_mutex by std::mutex in Copper" OFF)
 
@@ -50,6 +51,10 @@ if (COPPER_ENABLE_TESTS)
     target_compile_features(copper_tests PRIVATE cxx_std_20)
     if (NOT COPPER_ENABLE_FLAKY_TESTS)
         target_compile_definitions(copper_tests PRIVATE "COPPER_DISABLE_FLAKY_TESTS")
+    endif()
+    if (COPPER_COLLECT_TEST_COVERAGE)
+        target_compile_options(copper_tests PRIVATE "--coverage")
+        target_link_options(copper_tests PRIVATE "--coverage")
     endif()
 
     enable_testing()
