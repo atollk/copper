@@ -1393,7 +1393,7 @@ struct channel_rshift_op<Rhs, is_buffered, void, Args...> {
         if constexpr (std::is_invocable_v<Rhs&&>) {
             return _detail::make_popper(channel, std::forward<Rhs>(rhs));
         } else {
-            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, _detail::voidval_t>));
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cv_t<std::remove_reference_t<Rhs>>, _detail::voidval_t>));
             return _detail::value_select_token<true, void, is_buffered, void, Args...>{channel};
         }
     }
@@ -1405,7 +1405,7 @@ struct channel_lshift_op {
         if constexpr (std::is_invocable_r_v<T, Rhs&&>) {
             return _detail::make_pusher(channel, std::forward<Rhs>(rhs));
         } else {
-            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, T>));
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cv_t<std::remove_reference_t<Rhs>>, T>));
             return _detail::value_select_token<false, Rhs&&, is_buffered, T, Args...>{channel, std::forward<Rhs>(rhs)};
         }
     }
@@ -1417,7 +1417,7 @@ struct channel_lshift_op<Rhs, is_buffered, void, Args...> {
         if constexpr (std::is_invocable_v<Rhs&&>) {
             return _detail::make_pusher(channel, std::forward<Rhs>(rhs));
         } else {
-            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cvref_t<Rhs>, _detail::voidval_t>));
+            COPPER_STATIC_ASSERT((std::is_same_v<std::remove_cv_t<std::remove_reference_t<Rhs>>, _detail::voidval_t>));
             return _detail::value_select_token<false, void, is_buffered, void, Args...>{channel};
         }
     }
