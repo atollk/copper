@@ -79,6 +79,17 @@ and some benchmarks.
 
 ---
 
-## Conan, CPM, vcpkg
+## Dependency managers
 
-Not yet, but I'll see what I can do.
+### CPM
+
+Include the project in your CMakeLists.txt
+```cmake
+CPMAddPackage(
+  GITHUB_REPOSITORY atollk/copper
+  VERSION 1.1
+)
+
+target_link_libraries(MyProject Threads::Threads copper)
+```
+
