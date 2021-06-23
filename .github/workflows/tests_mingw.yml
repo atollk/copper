@@ -1,6 +1,6 @@
 name: Build & Test (Mingw)
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
