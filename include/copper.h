@@ -39,6 +39,7 @@ SOFTWARE.
 #include <optional>
 #include <queue>
 #include <random>
+#include <limits>
 
 #define COPPER_GET_MACRO2(_1, _2, NAME, ...) NAME
 #define COPPER_STATIC_ASSERT(...) \
@@ -203,7 +204,7 @@ struct has_clear<T, decltype(void(std::declval<T&>().clear()))> : std::true_type
 /** The internal buffer used to store elements within a channel. Has some overloads for void and unbuffered channels. */
 template <typename T, template <typename...> typename BufferQueue>
 struct channel_buffer<true, T, BufferQueue> {
-    explicit channel_buffer(size_t max_size = std::numeric_limits<size_t>::max()) : _max_size(max_size) {}
+    explicit channel_buffer(size_t max_size = (std::numeric_limits<size_t>::max)()) : _max_size(max_size) {}
 
     [[nodiscard]] bool is_empty() const { return this->_buffer.empty(); }
 
@@ -237,7 +238,7 @@ struct channel_buffer<true, T, BufferQueue> {
 /** The internal buffer used to store elements within a channel. Has some overloads for void and unbuffered channels. */
 template <template <typename...> typename BufferQueue>
 struct channel_buffer<true, void, BufferQueue> {
-    explicit channel_buffer(size_t max_size = std::numeric_limits<size_t>::max()) : _max_size(max_size), _buffer(0) {}
+    explicit channel_buffer(size_t max_size = (std::numeric_limits<size_t>::max)()) : _max_size(max_size), _buffer(0) {}
 
     [[nodiscard]] bool is_empty() const { return this->_buffer == 0; }
 
@@ -1762,8 +1763,8 @@ struct fill_with_random_indices_impl {
         thread_local auto engine = thread_local_randomizer::create();
         struct urbg {
             using result_type = decltype(engine(N));
-            static constexpr result_type min() { return 0; }
-            static constexpr result_type max() { return N - 1; }
+            static constexpr result_type (min)() { return 0; }
+            static constexpr result_type (max)() { return N - 1; }
             result_type operator()() { return engine(N); }
         };
         std::iota(indices.begin(), indices.end(), 0);
