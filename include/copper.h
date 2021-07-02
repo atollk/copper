@@ -873,7 +873,7 @@ struct popper_base : std::conditional_t<std::is_void_v<T>, popper_base_void, pop
     [[nodiscard]] channel_mutex_t& channel_mutex() const { return this->_channel->_mutex; }
 
   private:
-    friend class waiting_op_group_base;
+    friend struct waiting_op_group_base;
 
     bool _active = false;
     channel_t* _channel;
@@ -977,7 +977,7 @@ struct pusher_base {
     [[nodiscard]] channel_mutex_t& channel_mutex() const { return this->_channel->_mutex; }
 
   private:
-    friend class waiting_op_group_base;
+    friend struct waiting_op_group_base;
 
     bool _active = false;
     channel_t* _channel;
@@ -1647,6 +1647,7 @@ void visit_at(std::tuple<Ts...>& tup, size_t idx, F&& fun) {
 template <typename T, typename F, size_t... Is>
 void for_each_in_tuple_impl(T&& t, F&& f, std::integer_sequence<size_t, Is...>) {
     auto l = {(f(Is, std::get<Is>(t)), 0)...};
+    (void)l;
 }
 
 /** Calls a functor object for each element in a tuple. */
