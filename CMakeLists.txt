@@ -57,7 +57,7 @@ if (COPPER_ENABLE_TESTS)
         target_link_options(copper_tests PRIVATE "--coverage")
     endif()
     if (MSVC)
-        target_compile_options(copper_tests PRIVATE "bigobj")
+        target_compile_options(copper_tests PRIVATE "/bigobj")
     endif()
 
     enable_testing()
