@@ -81,15 +81,26 @@ and some benchmarks.
 
 ## Dependency managers
 
-### CPM
+### [FetchContent](https://cmake.org/cmake/help/latest/module/FetchContent.html)
 
-Include the project in your CMakeLists.txt
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  copper
+  GIT_REPOSITORY https://github.com/atollk/copper
+  GIT_TAG        v1.1
+)
+FetchContent_MakeAvailable(copper)
+target_link_libraries(MyProject Threads::Threads copper)
+```
+
+### [CPM](https://github.com/cpm-cmake/CPM.cmake)
+
 ```cmake
 CPMAddPackage(
   GITHUB_REPOSITORY atollk/copper
   VERSION 1.1
 )
-
 target_link_libraries(MyProject Threads::Threads copper)
 ```
 
