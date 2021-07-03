@@ -21,6 +21,9 @@ target_compile_features(copper INTERFACE cxx_std_17)
 if (COPPER_DISALLOW_MUTEX_RECURSION)
     target_compile_definitions(copper INTERFACE COPPER_DISALLOW_MUTEX_RECURSION)
 endif ()
+if (MSVC)
+    target_compile_options(copper INTERFACE bigobj)
+endif()
 
 
 if (COPPER_ENABLE_TESTS)
