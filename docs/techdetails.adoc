@@ -190,9 +190,9 @@ The table below displays the average time to send and receive one message and th
 
 == Benchmark (MPSC)
 
-(Disclaimer: The following measurements were done on a single 6-core CPU by a simple "measure multiple times and take the average" strategy.They can vary greatly depending on the CPU architecture, the surrounding memory model, and the thread scheduler.)
+(Disclaimer: The following measurements were done on a single 6-core CPU by a simple "measure multiple times and take the average" strategy. They can vary greatly depending on the CPU architecture, the surrounding memory model, and the thread scheduler.)
 
-In this benchmark, two types of data are sent from two separate producer threads to a single consumer thread.For that, four different methods are used:
+In this benchmark, two types of data are sent from two separate producer threads to a single consumer thread. For that, four different methods are used:
 
 1. `std::queue<std::variant>` with a `std::mutex` and a `std::condition_variable`
 2. Two `std::queue` with `std::mutex` and polling
@@ -201,7 +201,7 @@ In this benchmark, two types of data are sent from two separate producer threads
 
 Also, a program which mimics the behavior as closely as possible was written in Go using native channel objects.
 
-In the first case, the two types of data are `int` and `float`.In the second case, the types are `std::array<int, 10'000>` and `std::array<float, 10'000>`.
+In the first case, the two types of data are `int` and `float`. In the second case, the types are `std::array<int, 10'000>` and `std::array<float, 10'000>`.
 
 The table below displays the average time to send and receive one message and the resulting data rate.
 Note that the messages are not processed further, which means that any overhead from dealing with `std::variant` is not part of the measurement.
@@ -248,4 +248,40 @@ Note that the messages are not processed further, which means that any overhead 
 
 The functions `channel::push_func`, `channel::pop_func`, and `select` (as well as their variants for different timeout behaviors) should be used with a certain awareness of their blocking behavior.
 
-TODO
+A functor is passed to these calls which is then executed to produce or consume a message element. The channel that is operated on is locked for the entire duration of the functor execution. This can, for example, cause unexpectedly long blocking if the functor is complex:
+
+[source,c++]
+----
+// `chan` will be blocked for an entire second.
+chan.push_func([] {
+    std::this_thread::sleep_for(1s);
+    return 1;
+});
+----
+
+Even worse, you can cause deadlocks in your code by introducing cyclic dependencies among channels.
+
+[source,c++]
+----
+void thread_1() {
+    for (;;) {
+        chan_1.pop_func([&chan2](int x) {
+            chan_2.push(x);
+        });
+    }
+}
+
+void thread_2() {
+    for (;;) {
+        chan_2.pop_func([&chan1](int x) {
+            chan_1.push(x);
+        });
+    }
+}
+----
+
+In this example, `chan_1` and `chan_2` send messages back and forth forever. It might happen that both channels enter their `pop_func` concurrently. As both channels have to be blocked to do so, neither can then `push` their element to the other channel and both threads are locked.
+
+The "best" solution to prevent yourself from running into that bug is to avoid operations to channels within a functor passed to one of the affected functions. If that's not possible, changing the code to use the non-functor variants (`push`, `pop`, and `vselect`) instead will also prevent any deadlocks like this.
+
+Note that all of this is not caused by bad design of Copper itself but is a necessity due to the guarantees of `push_func`, `pop_func`, and `select`. `push_func` in particular cannot be implemented correctly without forcing a lock on the channel for the entire call.
