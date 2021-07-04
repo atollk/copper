@@ -178,9 +178,7 @@ enum class channel_op_status {
 
 Instead of a binary value (success / no success), this represents a ternary result, where "no success" is split into `closed`, meaning the channel is closed, and the operation cannot be executed on that channel anymore, or `unavailable`, meaning the operation could not be executed at the moment and caused a timeout.
 
-IMPORTANT: The channel object is locked while the callable is executed.
-If computing the pushed message or handling the popped message is expensive, you might block other threads trying to access the channel.
-In that case, it can be better to pre-compute the value.
+IMPORTANT: The channel object is locked while a callable is executed. This can cause unexpected slowdowns or even deadlocks in certain cases. See link:techdetails.adoc#_risk_of_deadlocks_slowdowns[docs/techdetails.adoc] for details.
 
 === Templated sending and receiving
 
@@ -324,9 +322,7 @@ A select statement returns
 * `channel_op_status::closed`, if the channels of all operations are closed and the channels of all push operations are empty.
 * `channel_op_status::unavailable` otherwise.
 
-IMPORTANT: The channel object is locked while a callable is executed.
-If computing the pushed message or handling the popped message is expensive, you might block other threads trying to access the channel.
-In that case, it can be better to pre-compute the value.
+IMPORTANT: The channel object is locked while a callable is executed. This can cause unexpected slowdowns or even deadlocks in certain cases. See link:techdetails.adoc#_risk_of_deadlocks_slowdowns[docs/techdetails.adoc] for details.
 
 Due to the locking behavior described above, there is an alternative "vselect" family which can prove to be faster when a lot of time is spent within the "select" callbacks.
 

@@ -190,9 +190,9 @@ The table below displays the average time to send and receive one message and th
 
 == Benchmark (MPSC)
 
-(Disclaimer: The following measurements were done on a single 6-core CPU by a simple "measure multiple times and take the average" strategy. They can vary greatly depending on the CPU architecture, the surrounding memory model, and the thread scheduler.)
+(Disclaimer: The following measurements were done on a single 6-core CPU by a simple "measure multiple times and take the average" strategy.They can vary greatly depending on the CPU architecture, the surrounding memory model, and the thread scheduler.)
 
-In this benchmark, two types of data are sent from two separate producer threads to a single consumer thread. For that, four different methods are used:
+In this benchmark, two types of data are sent from two separate producer threads to a single consumer thread.For that, four different methods are used:
 
 1. `std::queue<std::variant>` with a `std::mutex` and a `std::condition_variable`
 2. Two `std::queue` with `std::mutex` and polling
@@ -201,7 +201,7 @@ In this benchmark, two types of data are sent from two separate producer threads
 
 Also, a program which mimics the behavior as closely as possible was written in Go using native channel objects.
 
-In the first case, the two types of data are `int` and `float`. In the second case, the types are `std::array<int, 10'000>` and `std::array<float, 10'000>`.
+In the first case, the two types of data are `int` and `float`.In the second case, the types are `std::array<int, 10'000>` and `std::array<float, 10'000>`.
 
 The table below displays the average time to send and receive one message and the resulting data rate.
 Note that the messages are not processed further, which means that any overhead from dealing with `std::variant` is not part of the measurement.
@@ -241,3 +241,11 @@ Note that the messages are not processed further, which means that any overhead 
 | (not doable)
 
 |===
+
+
+[#_risk_of_deadlocks_slowdowns]
+== Risk of Deadlocks & Slowdowns
+
+The functions `channel::push_func`, `channel::pop_func`, and `select` (as well as their variants for different timeout behaviors) should be used with a certain awareness of their blocking behavior.
+
+TODO

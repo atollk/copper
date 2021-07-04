@@ -1,6 +1,14 @@
 = Motivation
 :toc:
 
+== Basics
+
+For more than a decade, software has been moving away from running faster by simply executing more instructions per second to executing multiple instructions at once. Terms like "Multithreading", "Concurrency", and "Parallelism" are expected to be in the repertoire of every serious software developer.
+
+Due to the existence of https://en.wikipedia.org/wiki/Race_condition[race conditions], concurrent programs have to be synchronized in some way. This is clasically done with https://en.wikipedia.org/wiki/Lock_(computer_science)[mutexes] and other synchronization primitives. This, however, can become tedious and error-prone as a code base and the level of concurrency grow.
+
+Inspired by https://en.wikipedia.org/wiki/Go_(programming_language)[Go], copper aims to bring an easier mechanism for synchronization to C++. By providing https://en.wikipedia.org/wiki/Message_queue[message queues] as communication data structures, the need for manual synchronization via mutexes vanishes or at least becomes much smaller.
+
 == Comparison
 
 Compared to a naive "synchronized queue" implementation, Copper offers the following features, which are often partially or fully missing:
