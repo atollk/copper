@@ -46,20 +46,21 @@ if (COPPER_ENABLE_TESTS)
             tests/select/test_select.cpp
             tests/select/test_vselect.cpp
             tests/select/test_void_select.cpp
-            tests/select/test_void_vselect.cpp)
+            tests/select/test_void_vselect.cpp
+            tests/channels/test_special_cases.cpp)
     target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
     target_compile_features(copper_tests PRIVATE cxx_std_20)
     if (NOT COPPER_ENABLE_FLAKY_TESTS)
         target_compile_definitions(copper_tests PRIVATE "COPPER_DISABLE_FLAKY_TESTS")
-    endif()
+    endif ()
     if (COPPER_COLLECT_TEST_COVERAGE)
         target_compile_options(copper_tests PRIVATE "--coverage")
         target_link_options(copper_tests PRIVATE "--coverage")
-    endif()
+    endif ()
     if (MSVC)
         target_compile_options(copper_tests PRIVATE "/bigobj")
-    endif()
+    endif ()
 
     enable_testing()
     add_test(copper_tests copper_tests)
-endif()
+endif ()
