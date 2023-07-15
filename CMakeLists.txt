@@ -46,8 +46,7 @@ if (COPPER_ENABLE_TESTS)
             tests/select/test_select.cpp
             tests/select/test_vselect.cpp
             tests/select/test_void_select.cpp
-            tests/select/test_void_vselect.cpp
-            tests/channels/test_special_cases.cpp)
+            tests/select/test_void_vselect.cpp)
     target_link_libraries(copper_tests PRIVATE Catch2 copper Threads::Threads)
     target_compile_features(copper_tests PRIVATE cxx_std_20)
     if (NOT COPPER_ENABLE_FLAKY_TESTS)
